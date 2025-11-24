@@ -27,10 +27,6 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 8289
-externalPort = 3001
-
-[[ports]]
 localPort = 37103
 externalPort = 5000
 
@@ -52,10 +48,10 @@ author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "PHP Admin Panel"
+args = "Mastra Bot"
 
 [[workflows.workflow]]
-name = "PHP Admin Panel"
+name = "Mastra Bot"
 author = "agent"
 
 [workflows.workflow.metadata]
@@ -63,7 +59,7 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd cpanel-bot && php -S 0.0.0.0:5000 -t ."
+args = "npm run dev"
 waitForPort = 5000
 
 [userenv]
