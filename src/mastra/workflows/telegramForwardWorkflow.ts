@@ -5,10 +5,11 @@ import { telegramForwardTool } from "../tools/telegramForwardTool";
 /**
  * Telegram Forward Workflow
  * 
- * This workflow receives incoming Telegram messages and forwards them to chat ID 383870190
+ * This workflow receives incoming Telegram messages and forwards them to a configurable chat ID
+ * Set TARGET_CHAT_ID environment variable to change the destination
  */
 
-const TARGET_CHAT_ID = "383870190";
+const TARGET_CHAT_ID = process.env.TARGET_CHAT_ID || "7503130172";
 
 /**
  * Step 1: Forward the message directly using the tool

@@ -9,7 +9,8 @@
 define('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE');
 
 // Target Chat ID - The chat where all messages will be forwarded
-define('TARGET_CHAT_ID', '383870190');
+// CHANGE THIS to forward messages to a different chat
+define('TARGET_CHAT_ID', '7503130172');
 
 // Enable logging for debugging (set to false in production)
 define('ENABLE_LOGGING', true);

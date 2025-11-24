@@ -34,6 +34,10 @@ localPort = 40987
 externalPort = 3003
 
 [[ports]]
+localPort = 43267
+externalPort = 4200
+
+[[ports]]
 localPort = 50052
 externalPort = 3002
 
@@ -80,3 +84,8 @@ waitForPort = 3000
 
 [workflows.workflow.metadata]
 outputType = "automations"
+
+[userenv]
+
+[userenv.shared]
+TARGET_CHAT_ID = "7503130172"
