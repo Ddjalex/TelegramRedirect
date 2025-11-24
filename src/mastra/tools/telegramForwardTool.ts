@@ -11,12 +11,15 @@ export const telegramForwardTool = createTool({
   id: "telegram-forward-tool",
 
   description:
-    "Forwards messages to a specified Telegram chat ID using the Telegram Bot API",
+    "Forwards messages and media to a specified Telegram chat ID using the Telegram Bot API",
 
   inputSchema: z.object({
     chatId: z.string().describe("The chat ID to send the message to"),
-    message: z.string().describe("The message text to send"),
+    message: z.string().optional().describe("The message text to send"),
     fromUser: z.string().optional().describe("Optional: Username of the original sender"),
+    mediaType: z.enum(["text", "photo", "video", "audio", "document"]).optional().describe("Type of media to send"),
+    fileId: z.string().optional().describe("Telegram file ID for media"),
+    caption: z.string().optional().describe("Caption for media"),
   }),
 
   outputSchema: z.object({
@@ -28,10 +31,10 @@ export const telegramForwardTool = createTool({
   execute: async ({ context, mastra }) => {
     const logger = mastra?.getLogger();
     
-    logger?.info("📤 [telegramForwardTool] Starting message forward", {
+    logger?.info("📤 [telegramForwardTool] Starting forward", {
       chatId: context.chatId,
-      messageLength: context.message.length,
       fromUser: context.fromUser,
+      mediaType: context.mediaType || "text",
     });
 
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -45,15 +48,40 @@ export const telegramForwardTool = createTool({
     }
 
     try {
-      // Format the message with sender info if available
-      const formattedMessage = context.fromUser
-        ? `📨 Forwarded from @${context.fromUser}:\n\n${context.message}`
-        : context.message;
+      const mediaType = context.mediaType || "text";
+      const caption = context.caption || context.message || "";
+      const formattedCaption = context.fromUser
+        ? `📨 Forwarded from @${context.fromUser}:\n\n${caption}`
+        : caption;
 
-      const apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+      let apiUrl = "";
+      let body: any = { chat_id: context.chatId };
+
+      // Determine API endpoint and body based on media type
+      if (mediaType === "photo") {
+        apiUrl = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+        body.photo = context.fileId;
+        body.caption = formattedCaption;
+      } else if (mediaType === "video") {
+        apiUrl = `https://api.telegram.org/bot${botToken}/sendVideo`;
+        body.video = context.fileId;
+        body.caption = formattedCaption;
+      } else if (mediaType === "audio") {
+        apiUrl = `https://api.telegram.org/bot${botToken}/sendAudio`;
+        body.audio = context.fileId;
+        body.caption = formattedCaption;
+      } else if (mediaType === "document") {
+        apiUrl = `https://api.telegram.org/bot${botToken}/sendDocument`;
+        body.document = context.fileId;
+        body.caption = formattedCaption;
+      } else {
+        // Text message
+        apiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+        body.text = formattedCaption;
+      }
       
-      logger?.info("🔄 [telegramForwardTool] Sending request to Telegram API", {
-        url: apiUrl,
+      logger?.info("🔄 [telegramForwardTool] Sending to Telegram API", {
+        mediaType,
         chatId: context.chatId,
       });
 
@@ -62,10 +90,7 @@ export const telegramForwardTool = createTool({
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          chat_id: context.chatId,
-          text: formattedMessage,
-        }),
+        body: JSON.stringify(body),
       });
 
       const data = await response.json();
@@ -77,11 +102,11 @@ export const telegramForwardTool = createTool({
         });
         return {
           success: false,
-          error: data.description || "Failed to send message",
+          error: data.description || "Failed to send",
         };
       }
 
-      logger?.info("✅ [telegramForwardTool] Message sent successfully", {
+      logger?.info("✅ [telegramForwardTool] Sent successfully", {
         messageId: data.result.message_id,
       });
 

@@ -22,6 +22,8 @@ const forwardMessage = createStep({
     userName: z.string().describe("Username of the message sender"),
     message: z.string().describe("The message text to forward"),
     chatId: z.string().optional().describe("Original chat ID"),
+    mediaType: z.string().optional().describe("Type of media: text, photo, video, audio, document"),
+    fileId: z.string().optional().describe("Telegram file ID for media"),
   }),
 
   outputSchema: z.object({
@@ -33,10 +35,10 @@ const forwardMessage = createStep({
 
   execute: async ({ inputData, mastra, runtimeContext }) => {
     const logger = mastra?.getLogger();
-    logger?.info("🚀 [Step 1] Starting message forward", {
+    logger?.info("🚀 [Step 1] Starting forward", {
       userName: inputData.userName,
-      messageLength: inputData.message.length,
       targetChatId: TARGET_CHAT_ID,
+      mediaType: inputData.mediaType || "text",
     });
 
     logger?.info("📤 [Step 1] Calling telegramForwardTool directly");
@@ -47,6 +49,9 @@ const forwardMessage = createStep({
         chatId: TARGET_CHAT_ID,
         message: inputData.message,
         fromUser: inputData.userName,
+        mediaType: (inputData.mediaType as any) || "text",
+        fileId: inputData.fileId,
+        caption: inputData.message,
       },
       mastra,
       runtimeContext,
@@ -140,6 +145,8 @@ export const telegramForwardWorkflow = createWorkflow({
     userName: z.string().describe("Username of the message sender"),
     message: z.string().describe("The message text to forward"),
     chatId: z.string().optional().describe("Original chat ID"),
+    mediaType: z.string().optional().describe("Type of media: text, photo, video, audio, document"),
+    fileId: z.string().optional().describe("Telegram file ID for media"),
   }) as any,
 
   outputSchema: z.object({

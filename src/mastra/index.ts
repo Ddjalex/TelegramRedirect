@@ -226,24 +226,53 @@ export const mastra = new Mastra({
               // Support both regular messages and business messages
               const messageData = payload.message || payload.business_message;
               
-              // Check if this is a text message
-              if (!messageData || !messageData.text) {
-                logger?.info("⏭️ [Telegram] Skipping - not a text message");
+              // Check if there's any content to forward
+              if (!messageData) {
+                logger?.info("⏭️ [Telegram] Skipping - no message data");
                 return c.json({ ok: true, skipped: true });
               }
 
               const senderId = messageData.from?.id?.toString();
               const senderUserName = messageData.from?.username || messageData.from?.first_name || "unknown";
-              const message = messageData.text;
+              
+              // Detect message type and extract content
+              let mediaType = "text";
+              let fileId = "";
+              let caption = "";
+              let message = messageData.text || "";
+
+              if (messageData.photo && messageData.photo.length > 0) {
+                mediaType = "photo";
+                fileId = messageData.photo[messageData.photo.length - 1].file_id; // Get highest resolution
+                caption = messageData.caption || "";
+              } else if (messageData.video) {
+                mediaType = "video";
+                fileId = messageData.video.file_id;
+                caption = messageData.caption || "";
+              } else if (messageData.audio) {
+                mediaType = "audio";
+                fileId = messageData.audio.file_id;
+                caption = messageData.caption || "";
+              } else if (messageData.document) {
+                mediaType = "document";
+                fileId = messageData.document.file_id;
+                caption = messageData.caption || "";
+              } else if (!messageData.text) {
+                // No text and no supported media
+                logger?.info("⏭️ [Telegram] Skipping - unsupported message type");
+                return c.json({ ok: true, skipped: true });
+              }
 
               logger?.info("🎯 [Telegram Trigger] Received message", {
                 senderId,
                 senderUserName,
-                message,
+                mediaType,
+                hasText: !!message,
+                hasMedia: !!fileId,
                 isBusinessMessage: !!payload.business_message,
               });
 
-              logger?.info("✅ [Telegram Trigger] Processing and forwarding message");
+              logger?.info("✅ [Telegram Trigger] Processing and forwarding");
 
               // Create a unique thread ID for this sender
               const threadId = `telegram-sender-${senderId}`;
@@ -254,8 +283,10 @@ export const mastra = new Mastra({
                 inputData: {
                   threadId,
                   userName: senderUserName,
-                  message,
+                  message: caption || message,
                   chatId: senderId,
+                  mediaType,
+                  fileId,
                 },
               });
 
