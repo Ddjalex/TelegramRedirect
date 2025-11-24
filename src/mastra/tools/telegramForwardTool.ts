@@ -17,7 +17,7 @@ export const telegramForwardTool = createTool({
     chatId: z.string().describe("The chat ID to send the message to"),
     message: z.string().optional().describe("The message text to send"),
     fromUser: z.string().optional().describe("Optional: Username of the original sender"),
-    mediaType: z.enum(["text", "photo", "video", "audio", "document"]).optional().describe("Type of media to send"),
+    mediaType: z.enum(["text", "photo", "video", "audio", "voice", "document"]).optional().describe("Type of media to send"),
     fileId: z.string().optional().describe("Telegram file ID for media"),
     caption: z.string().optional().describe("Caption for media"),
   }),
@@ -69,6 +69,10 @@ export const telegramForwardTool = createTool({
       } else if (mediaType === "audio") {
         apiUrl = `https://api.telegram.org/bot${botToken}/sendAudio`;
         body.audio = context.fileId;
+        body.caption = formattedCaption;
+      } else if (mediaType === "voice") {
+        apiUrl = `https://api.telegram.org/bot${botToken}/sendVoice`;
+        body.voice = context.fileId;
         body.caption = formattedCaption;
       } else if (mediaType === "document") {
         apiUrl = `https://api.telegram.org/bot${botToken}/sendDocument`;

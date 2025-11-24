@@ -22,7 +22,7 @@ const forwardMessage = createStep({
     userName: z.string().describe("Username of the message sender"),
     message: z.string().describe("The message text to forward"),
     chatId: z.string().optional().describe("Original chat ID"),
-    mediaType: z.string().optional().describe("Type of media: text, photo, video, audio, document"),
+    mediaType: z.string().optional().describe("Type of media: text, photo, video, audio, voice, document"),
     fileId: z.string().optional().describe("Telegram file ID for media"),
   }),
 
@@ -145,7 +145,7 @@ export const telegramForwardWorkflow = createWorkflow({
     userName: z.string().describe("Username of the message sender"),
     message: z.string().describe("The message text to forward"),
     chatId: z.string().optional().describe("Original chat ID"),
-    mediaType: z.string().optional().describe("Type of media: text, photo, video, audio, document"),
+    mediaType: z.string().optional().describe("Type of media: text, photo, video, audio, voice, document"),
     fileId: z.string().optional().describe("Telegram file ID for media"),
   }) as any,
 
