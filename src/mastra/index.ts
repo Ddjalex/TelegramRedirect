@@ -223,32 +223,40 @@ export const mastra = new Mastra({
               
               logger?.info("📝 [Telegram] Webhook received", { payload });
 
-              // Check if this is a message
-              if (!payload.message || !payload.message.text) {
+              // Support both regular messages and business messages
+              const messageData = payload.message || payload.business_message;
+              
+              // Check if this is a text message
+              if (!messageData || !messageData.text) {
                 logger?.info("⏭️ [Telegram] Skipping - not a text message");
                 return c.json({ ok: true, skipped: true });
               }
 
-              const chatId = payload.message.chat?.id?.toString();
-              const userName = payload.message.from?.username || "unknown";
-              const message = payload.message.text;
+              // For business messages, check the sender's ID (from.id)
+              // For regular messages, check the chat ID
+              const senderId = messageData.from?.id?.toString();
+              const chatId = messageData.chat?.id?.toString();
+              const userName = messageData.from?.username || messageData.from?.first_name || "unknown";
+              const message = messageData.text;
 
               logger?.info("🎯 [Telegram Trigger] Received message", {
+                senderId,
                 chatId,
                 userName,
                 message,
+                isBusinessMessage: !!payload.business_message,
               });
 
-              // Only process messages from chat ID 383870190
-              if (chatId !== "383870190") {
-                logger?.info("⏭️ [Telegram Trigger] Skipping message - not from monitored chat", {
-                  chatId,
-                  monitoredChatId: "383870190",
+              // Only process messages from sender ID 383870190
+              if (senderId !== "383870190") {
+                logger?.info("⏭️ [Telegram Trigger] Skipping message - not from monitored user", {
+                  senderId,
+                  monitoredUserId: "383870190",
                 });
                 return c.json({ ok: true, skipped: true });
               }
 
-              logger?.info("✅ [Telegram Trigger] Processing message from monitored chat");
+              logger?.info("✅ [Telegram Trigger] Processing message from monitored user");
 
               // Create a unique thread ID for this user
               const threadId = `telegram-user-${userName}`;
@@ -260,7 +268,7 @@ export const mastra = new Mastra({
                   threadId,
                   userName,
                   message,
-                  chatId,
+                  chatId: senderId,
                 },
               });
 
