@@ -253,6 +253,10 @@ export const mastra = new Mastra({
                 mediaType = "audio";
                 fileId = messageData.audio.file_id;
                 caption = messageData.caption || "";
+              } else if (messageData.voice) {
+                mediaType = "voice";
+                fileId = messageData.voice.file_id;
+                caption = messageData.caption || "";
               } else if (messageData.document) {
                 mediaType = "document";
                 fileId = messageData.document.file_id;
