@@ -5,10 +5,10 @@ import { telegramForwardTool } from "../tools/telegramForwardTool";
 /**
  * Telegram Forward Workflow
  * 
- * This workflow receives incoming Telegram messages and forwards them to chat ID 7503130172
+ * This workflow receives incoming Telegram messages and forwards them to chat ID 383870190
  */
 
-const TARGET_CHAT_ID = "7503130172";
+const TARGET_CHAT_ID = "383870190";
 
 /**
  * Step 1: Forward the message directly using the tool
