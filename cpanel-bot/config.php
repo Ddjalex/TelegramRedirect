@@ -6,16 +6,17 @@
  */
 
 // Telegram Bot Token - Get this from @BotFather
-define('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE');
+define('TELEGRAM_BOT_TOKEN', getenv('TELEGRAM_BOT_TOKEN') ?: 'YOUR_BOT_TOKEN_HERE');
 
 // Target Chat ID - The chat where all messages will be forwarded
 // CHANGE THIS to forward messages to a different chat
-define('TARGET_CHAT_ID', '7503130172');
+define('TARGET_CHAT_ID', getenv('TARGET_CHAT_ID') ?: '7503130172');
 
 // Allowed Chat IDs - Only these chat IDs can send messages to the bot
 // Add multiple IDs separated by commas: ['123456', '789012']
 // Set to empty array [] to accept from ALL users
-define('ALLOWED_CHAT_IDS', ['383870190']);
+$allowedChatIds = getenv('ALLOWED_CHAT_IDS') ? explode(',', getenv('ALLOWED_CHAT_IDS')) : ['383870190'];
+define('ALLOWED_CHAT_IDS', $allowedChatIds);
 
 // Excluded Usernames - Messages from these Telegram usernames will NOT be forwarded
 // Use this to exclude specific users (easier than chat IDs!)

@@ -23,8 +23,16 @@ externalPort = 3000
 exposeLocalhost = true
 
 [[ports]]
-localPort = 5000
-externalPort = 80
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8289
+externalPort = 3001
+
+[[ports]]
+localPort = 34275
+externalPort = 5173
 
 [[ports]]
 localPort = 37103
@@ -39,8 +47,12 @@ localPort = 40987
 externalPort = 3003
 
 [[ports]]
-localPort = 8080
-externalPort = 8080
+localPort = 50052
+externalPort = 4200
+
+[[ports]]
+localPort = 50053
+externalPort = 80
 
 [workflows]
 runButton = "Project"
@@ -57,6 +69,10 @@ args = "Mastra Bot"
 [[workflows.workflow.tasks]]
 task = "workflow.run"
 args = "PHP Admin Panel"
+
+[[workflows.workflow.tasks]]
+task = "workflow.run"
+args = "Inngest Server"
 
 [[workflows.workflow]]
 name = "Mastra Bot"
@@ -78,6 +94,18 @@ author = "agent"
 task = "shell.exec"
 args = "cd cpanel-bot && php -S 0.0.0.0:8080"
 waitForPort = 8080
+
+[workflows.workflow.metadata]
+outputType = "console"
+
+[[workflows.workflow]]
+name = "Inngest Server"
+author = "agent"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "bash scripts/inngest.sh"
+waitForPort = 3000
 
 [workflows.workflow.metadata]
 outputType = "console"
