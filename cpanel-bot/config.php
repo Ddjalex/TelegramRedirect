@@ -26,7 +26,14 @@ define('EXCLUDED_USERNAMES', []);
 // Excluded Chat IDs - Messages from these chat IDs will NOT be forwarded
 // Organized by chat type (channel, group, or individual)
 // Structure: ['chat_id' => ['id' => 'chat_id', 'name' => 'Chat Name', 'type' => 'channel|group|individual']]
-define('EXCLUDED_CHAT_IDS', []);
+// START_EXCLUDED_CHAT_IDS_JSON
+define('EXCLUDED_CHAT_IDS_JSON', <<<'JSON'
+{}
+JSON
+);
+// END_EXCLUDED_CHAT_IDS_JSON
+$_excluded_chat_ids = json_decode(EXCLUDED_CHAT_IDS_JSON, true);
+define('EXCLUDED_CHAT_IDS', ($_excluded_chat_ids === null || !is_array($_excluded_chat_ids)) ? [] : $_excluded_chat_ids);
 
 // Enable logging for debugging (set to false in production)
 define('ENABLE_LOGGING', true);

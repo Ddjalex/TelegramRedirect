@@ -203,15 +203,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $excludedUsernames = $usernameMatches[1] ?? [];
     }
     
-    $chatPattern = "/define\('EXCLUDED_CHAT_IDS',\s*(\[[\s\S]*?\]);/";
+    $chatPattern = "/\/\/ START_EXCLUDED_CHAT_IDS_JSON\r?\n.*?<<<'JSON'\r?\n(.*?)\r?\nJSON\r?\n.*?\/\/ END_EXCLUDED_CHAT_IDS_JSON/s";
     preg_match($chatPattern, $configContent, $chatMatches);
     $excludedChatIds = [];
+    $jsonLoadError = null;
     if (isset($chatMatches[1])) {
-        eval('$excludedChatIds = ' . $chatMatches[1] . ';');
+        $decoded = json_decode($chatMatches[1], true);
+        if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+            $excludedChatIds = $decoded;
+        } else {
+            $jsonLoadError = 'Failed to load excluded chat IDs: ' . json_last_error_msg();
+        }
     }
 } else {
     $excludedUsernames = defined('EXCLUDED_USERNAMES') ? EXCLUDED_USERNAMES : [];
     $excludedChatIds = defined('EXCLUDED_CHAT_IDS') ? EXCLUDED_CHAT_IDS : [];
+    $jsonLoadError = null;
 }
 
 function addExcludedUsername($username) {
@@ -365,12 +372,18 @@ function addExcludedChatId($chatId, $chatName, $chatType) {
     
     $configContent = stream_get_contents($fp);
     
-    $pattern = "/define\('EXCLUDED_CHAT_IDS',\s*(\[[\s\S]*?\]);/";
+    $pattern = "/\/\/ START_EXCLUDED_CHAT_IDS_JSON\r?\n.*?<<<'JSON'\r?\n(.*?)\r?\nJSON\r?\n.*?\/\/ END_EXCLUDED_CHAT_IDS_JSON/s";
     preg_match($pattern, $configContent, $matches);
     
     $currentChats = [];
     if (isset($matches[1])) {
-        eval('$currentChats = ' . $matches[1] . ';');
+        $decoded = json_decode($matches[1], true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+            return ['success' => false, 'message' => 'Failed to load existing excluded chat IDs: ' . json_last_error_msg() . '. Please fix the JSON in config.php.'];
+        }
+        $currentChats = $decoded;
     }
     
     if (isset($currentChats[$chatId])) {
@@ -385,19 +398,38 @@ function addExcludedChatId($chatId, $chatName, $chatType) {
         'type' => $chatType
     ];
     
-    $arrayContent = var_export($currentChats, true);
-    $arrayContent = preg_replace('/^array\s*\(/', '[', $arrayContent);
-    $arrayContent = preg_replace('/\)$/', ']', $arrayContent);
-    $arrayContent = str_replace('array (', '[', $arrayContent);
-    $arrayContent = str_replace(')', ']', $arrayContent);
+    $jsonContent = json_encode($currentChats, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     
-    $newDefine = "define('EXCLUDED_CHAT_IDS', " . $arrayContent . ");";
+    if ($jsonContent === false) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to encode chat data as JSON: ' . json_last_error_msg()];
+    }
     
-    $newContent = preg_replace($pattern, $newDefine, $configContent);
+    $newBlock = "// START_EXCLUDED_CHAT_IDS_JSON\ndefine('EXCLUDED_CHAT_IDS_JSON', <<<'JSON'\n" . $jsonContent . "\nJSON\n);\n// END_EXCLUDED_CHAT_IDS_JSON";
+    
+    $newContent = preg_replace($pattern, $newBlock, $configContent);
+    
+    if ($newContent === null || $newContent === $configContent || !preg_match($pattern, $configContent)) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to update config file. JSON block not found or malformed. Please verify the EXCLUDED_CHAT_IDS_JSON block exists in config.php.'];
+    }
+    
+    if (ftruncate($fp, 0) === false) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to truncate config file.'];
+    }
     
     rewind($fp);
-    ftruncate($fp, 0);
-    fwrite($fp, $newContent);
+    
+    if (fwrite($fp, $newContent) === false) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to write to config file.'];
+    }
+    
     fflush($fp);
     flock($fp, LOCK_UN);
     fclose($fp);
@@ -420,12 +452,18 @@ function removeExcludedChatId($chatId) {
     
     $configContent = stream_get_contents($fp);
     
-    $pattern = "/define\('EXCLUDED_CHAT_IDS',\s*(\[[\s\S]*?\]);/";
+    $pattern = "/\/\/ START_EXCLUDED_CHAT_IDS_JSON\r?\n.*?<<<'JSON'\r?\n(.*?)\r?\nJSON\r?\n.*?\/\/ END_EXCLUDED_CHAT_IDS_JSON/s";
     preg_match($pattern, $configContent, $matches);
     
     $currentChats = [];
     if (isset($matches[1])) {
-        eval('$currentChats = ' . $matches[1] . ';');
+        $decoded = json_decode($matches[1], true);
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+            flock($fp, LOCK_UN);
+            fclose($fp);
+            return ['success' => false, 'message' => 'Failed to load existing excluded chat IDs: ' . json_last_error_msg() . '. Please fix the JSON in config.php.'];
+        }
+        $currentChats = $decoded;
     }
     
     if (!isset($currentChats[$chatId])) {
@@ -437,23 +475,38 @@ function removeExcludedChatId($chatId) {
     $chatName = $currentChats[$chatId]['name'] ?? 'Unknown';
     unset($currentChats[$chatId]);
     
-    $arrayContent = var_export($currentChats, true);
-    $arrayContent = preg_replace('/^array\s*\(/', '[', $arrayContent);
-    $arrayContent = preg_replace('/\)$/', ']', $arrayContent);
-    $arrayContent = str_replace('array (', '[', $arrayContent);
-    $arrayContent = str_replace(')', ']', $arrayContent);
+    $jsonContent = json_encode($currentChats, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     
-    if (empty($currentChats)) {
-        $newDefine = "define('EXCLUDED_CHAT_IDS', []);";
-    } else {
-        $newDefine = "define('EXCLUDED_CHAT_IDS', " . $arrayContent . ");";
+    if ($jsonContent === false) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to encode chat data as JSON: ' . json_last_error_msg()];
     }
     
-    $newContent = preg_replace($pattern, $newDefine, $configContent);
+    $newBlock = "// START_EXCLUDED_CHAT_IDS_JSON\ndefine('EXCLUDED_CHAT_IDS_JSON', <<<'JSON'\n" . $jsonContent . "\nJSON\n);\n// END_EXCLUDED_CHAT_IDS_JSON";
+    
+    $newContent = preg_replace($pattern, $newBlock, $configContent);
+    
+    if ($newContent === null || $newContent === $configContent || !preg_match($pattern, $configContent)) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to update config file. JSON block not found or malformed. Please verify the EXCLUDED_CHAT_IDS_JSON block exists in config.php.'];
+    }
+    
+    if (ftruncate($fp, 0) === false) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to truncate config file.'];
+    }
     
     rewind($fp);
-    ftruncate($fp, 0);
-    fwrite($fp, $newContent);
+    
+    if (fwrite($fp, $newContent) === false) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to write to config file.'];
+    }
+    
     fflush($fp);
     flock($fp, LOCK_UN);
     fclose($fp);
@@ -476,14 +529,55 @@ function clearExcludedChatIds() {
     
     $configContent = stream_get_contents($fp);
     
-    $newDefine = "define('EXCLUDED_CHAT_IDS', []);";
+    $pattern = "/\/\/ START_EXCLUDED_CHAT_IDS_JSON\r?\n.*?<<<'JSON'\r?\n(.*?)\r?\nJSON\r?\n.*?\/\/ END_EXCLUDED_CHAT_IDS_JSON/s";
     
-    $pattern = "/define\('EXCLUDED_CHAT_IDS',\s*(\[[\s\S]*?\]);/";
-    $newContent = preg_replace($pattern, $newDefine, $configContent);
+    if (!preg_match($pattern, $configContent, $matches)) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to update config file. JSON block not found or malformed. Please verify the EXCLUDED_CHAT_IDS_JSON block exists in config.php.'];
+    }
+    
+    $currentJson = isset($matches[1]) ? trim($matches[1]) : '';
+    
+    $decoded = json_decode($currentJson, true);
+    if (json_last_error() !== JSON_ERROR_NONE || !is_array($decoded)) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to load existing excluded chat IDs: ' . json_last_error_msg() . '. Please fix the JSON in config.php before clearing.'];
+    }
+    
+    if (empty($decoded)) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => true, 'message' => 'All excluded chat IDs already cleared!'];
+    }
+    
+    $jsonContent = '{}';
+    
+    $newBlock = "// START_EXCLUDED_CHAT_IDS_JSON\ndefine('EXCLUDED_CHAT_IDS_JSON', <<<'JSON'\n" . $jsonContent . "\nJSON\n);\n// END_EXCLUDED_CHAT_IDS_JSON";
+    
+    $newContent = preg_replace($pattern, $newBlock, $configContent);
+    
+    if ($newContent === null) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to update config file. JSON block replacement failed.'];
+    }
+    
+    if (ftruncate($fp, 0) === false) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to truncate config file.'];
+    }
     
     rewind($fp);
-    ftruncate($fp, 0);
-    fwrite($fp, $newContent);
+    
+    if (fwrite($fp, $newContent) === false) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to write to config file.'];
+    }
+    
     fflush($fp);
     flock($fp, LOCK_UN);
     fclose($fp);
@@ -672,6 +766,13 @@ function clearExcludedChatIds() {
             <?php if ($message): ?>
                 <div class="message <?php echo $messageType; ?>">
                     <?php echo htmlspecialchars($message); ?>
+                </div>
+            <?php endif; ?>
+            
+            <?php if (!empty($jsonLoadError)): ?>
+                <div class="message error">
+                    <strong>⚠️ Configuration Error:</strong> <?php echo htmlspecialchars($jsonLoadError); ?>
+                    <br>Please check your config.php file or contact support.
                 </div>
             <?php endif; ?>
             
