@@ -32,6 +32,18 @@ $message = $update['message'];
 $senderId = $message['from']['id'] ?? 'unknown';
 $senderUsername = $message['from']['username'] ?? $message['from']['first_name'] ?? 'unknown';
 
+// ========== FILTER: ONLY ACCEPT MESSAGES FROM SPECIFIC CHAT IDs ==========
+// Check if sender is allowed (if ALLOWED_CHAT_IDS is not empty)
+if (!empty(ALLOWED_CHAT_IDS) && !in_array((string)$senderId, ALLOWED_CHAT_IDS)) {
+    logMessage("Blocked - sender not in allowed list", [
+        'sender_id' => $senderId,
+        'allowed_ids' => ALLOWED_CHAT_IDS
+    ]);
+    echo json_encode(['ok' => true, 'message' => 'Not authorized']);
+    exit;
+}
+// ========================================================================
+
 // Detect message type and extract content
 $messageData = extractMessageData($message);
 

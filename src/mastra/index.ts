@@ -235,6 +235,22 @@ export const mastra = new Mastra({
               const senderId = messageData.from?.id?.toString();
               const senderUserName = messageData.from?.username || messageData.from?.first_name || "unknown";
               
+              // ========== FILTER: ONLY ACCEPT MESSAGES FROM SPECIFIC CHAT IDs ==========
+              // Change this list to control who can send messages to the bot
+              const ALLOWED_CHAT_IDS = process.env.ALLOWED_CHAT_IDS 
+                ? process.env.ALLOWED_CHAT_IDS.split(',')
+                : ['383870190']; // Default: only accept from this chat ID
+              
+              // Check if sender is allowed
+              if (!ALLOWED_CHAT_IDS.includes(senderId)) {
+                logger?.info("🚫 [Telegram] Blocked - sender not in allowed list", {
+                  senderId,
+                  allowedIds: ALLOWED_CHAT_IDS,
+                });
+                return c.json({ ok: true, message: "Not authorized" });
+              }
+              // ========================================================================
+              
               // Detect message type and extract content
               let mediaType = "text";
               let fileId = "";

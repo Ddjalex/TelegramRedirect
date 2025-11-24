@@ -89,3 +89,4 @@ outputType = "automations"
 
 [userenv.shared]
 TARGET_CHAT_ID = "7503130172"
+ALLOWED_CHAT_IDS = "383870190"
