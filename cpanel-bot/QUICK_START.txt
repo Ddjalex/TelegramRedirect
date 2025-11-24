@@ -1,0 +1,91 @@
+═══════════════════════════════════════════════════════════════
+  🤖 TELEGRAM BOT - CPANEL QUICK START GUIDE
+═══════════════════════════════════════════════════════════════
+
+✅ YOUR PHP BOT IS READY FOR CPANEL HOSTING!
+
+📁 FILES INCLUDED:
+   1. config.php      - Bot configuration (EDIT THIS FIRST!)
+   2. webhook.php     - Receives messages from Telegram
+   3. functions.php   - Helper functions
+   4. setup.php       - One-time setup page
+   5. .htaccess       - Security & routing
+   6. README.md       - Full documentation
+
+═══════════════════════════════════════════════════════════════
+  🚀 3-STEP INSTALLATION
+═══════════════════════════════════════════════════════════════
+
+STEP 1: UPLOAD TO CPANEL
+------------------------
+1. Download all files from the 'cpanel-bot' folder
+2. Log into your cPanel
+3. Go to File Manager
+4. Navigate to public_html
+5. Create a new folder: 'telegram-bot'
+6. Upload ALL files to that folder
+
+
+STEP 2: CONFIGURE BOT TOKEN
+----------------------------
+1. In cPanel File Manager, open: config.php
+2. Find this line:
+   define('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE');
+3. Replace 'YOUR_BOT_TOKEN_HERE' with your actual bot token
+4. Save the file
+
+
+STEP 3: REGISTER WEBHOOK
+-------------------------
+1. Open browser and visit:
+   https://yourdomain.com/telegram-bot/setup.php
+2. Click "🚀 Setup Webhook" button
+3. You should see: "✅ Webhook Registered Successfully!"
+4. Done! Your bot is now live!
+
+
+═══════════════════════════════════════════════════════════════
+  ✅ TEST YOUR BOT
+═══════════════════════════════════════════════════════════════
+
+Send any message to your Telegram bot:
+• Text message → Will be forwarded
+• Photo → Will be forwarded
+• Video → Will be forwarded  
+• Voice message → Will be forwarded
+• Audio file → Will be forwarded
+• Document → Will be forwarded
+
+All messages go to chat ID: 7503130172
+
+
+═══════════════════════════════════════════════════════════════
+  🔧 TROUBLESHOOTING
+═══════════════════════════════════════════════════════════════
+
+Bot not working?
+• Check bot token in config.php is correct
+• Make sure domain has SSL certificate (HTTPS required)
+• Check bot.log file for errors
+• Visit setup.php to verify webhook status
+
+Still having issues?
+• Read the full README.md file
+• Check file permissions (644 for files, 755 for folders)
+• Contact your hosting provider
+
+
+═══════════════════════════════════════════════════════════════
+  📝 IMPORTANT NOTES
+═══════════════════════════════════════════════════════════════
+
+✅ HTTPS is REQUIRED (SSL certificate must be installed)
+✅ PHP 7.4 or higher required
+✅ cURL must be enabled in PHP
+✅ Keep your bot token SECRET - never share it!
+
+═══════════════════════════════════════════════════════════════
+
+Need help? Check README.md for detailed documentation!
+
+═══════════════════════════════════════════════════════════════

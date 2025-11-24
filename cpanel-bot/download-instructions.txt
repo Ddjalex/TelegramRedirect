@@ -1,0 +1,43 @@
+╔════════════════════════════════════════════════════════════════╗
+║           HOW TO DOWNLOAD YOUR BOT FILES                       ║
+╚════════════════════════════════════════════════════════════════╝
+
+All your PHP bot files are in the 'cpanel-bot' folder.
+
+To download them to your computer:
+
+METHOD 1: Using Replit Interface
+---------------------------------
+1. Open the Files panel on the left
+2. Navigate to 'cpanel-bot' folder  
+3. Right-click on each file
+4. Select "Download"
+5. Save to your computer
+
+
+METHOD 2: Download All at Once
+-------------------------------
+1. Click the three dots (⋮) menu in Replit
+2. Select "Download as zip"
+3. Extract the 'cpanel-bot' folder from the zip
+
+
+FILES YOU NEED TO UPLOAD TO CPANEL:
+------------------------------------
+✓ config.php
+✓ webhook.php
+✓ functions.php
+✓ setup.php
+✓ .htaccess
+✓ README.md (optional - for reference)
+✓ QUICK_START.txt (optional - for reference)
+
+
+NEXT STEPS:
+-----------
+1. Download all files
+2. Follow instructions in QUICK_START.txt
+3. Upload to your cPanel
+4. Configure and enjoy!
+
+╚════════════════════════════════════════════════════════════════╝
