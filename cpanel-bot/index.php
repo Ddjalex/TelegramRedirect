@@ -162,6 +162,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $result = clearExcludedUsernames();
             $message = $result['message'];
             $messageType = $result['success'] ? 'success' : 'error';
+        } elseif ($action === 'add_chat' && !empty($_POST['chat_id'])) {
+            $chatId = trim($_POST['chat_id']);
+            $chatName = trim($_POST['chat_name'] ?? 'Unknown Chat');
+            $chatType = $_POST['chat_type'] ?? 'individual';
+            
+            if (!in_array($chatType, ['channel', 'group', 'individual'])) {
+                $message = 'Invalid chat type. Must be channel, group, or individual.';
+                $messageType = 'error';
+            } else {
+                $result = addExcludedChatId($chatId, $chatName, $chatType);
+                $message = $result['message'];
+                $messageType = $result['success'] ? 'success' : 'error';
+            }
+        } elseif ($action === 'remove_chat' && !empty($_POST['chat_id'])) {
+            $chatId = trim($_POST['chat_id']);
+            $result = removeExcludedChatId($chatId);
+            $message = $result['message'];
+            $messageType = $result['success'] ? 'success' : 'error';
+        } elseif ($action === 'clear_chats') {
+            $result = clearExcludedChatIds();
+            $message = $result['message'];
+            $messageType = $result['success'] ? 'success' : 'error';
         } elseif ($action === 'logout') {
             session_destroy();
             header('Location: ' . $_SERVER['PHP_SELF']);
@@ -180,8 +202,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         preg_match_all("/'([^']+)'/", $matches[2], $usernameMatches);
         $excludedUsernames = $usernameMatches[1] ?? [];
     }
+    
+    $chatPattern = "/define\('EXCLUDED_CHAT_IDS',\s*(\[[\s\S]*?\]);/";
+    preg_match($chatPattern, $configContent, $chatMatches);
+    $excludedChatIds = [];
+    if (isset($chatMatches[1])) {
+        eval('$excludedChatIds = ' . $chatMatches[1] . ';');
+    }
 } else {
     $excludedUsernames = defined('EXCLUDED_USERNAMES') ? EXCLUDED_USERNAMES : [];
+    $excludedChatIds = defined('EXCLUDED_CHAT_IDS') ? EXCLUDED_CHAT_IDS : [];
 }
 
 function addExcludedUsername($username) {
@@ -320,6 +350,147 @@ function clearExcludedUsernames() {
     return ['success' => true, 'message' => 'All excluded usernames cleared successfully!'];
 }
 
+function addExcludedChatId($chatId, $chatName, $chatType) {
+    $configFile = __DIR__ . '/config.php';
+    
+    $fp = fopen($configFile, 'c+');
+    if (!$fp) {
+        return ['success' => false, 'message' => 'Failed to open config file.'];
+    }
+    
+    if (!flock($fp, LOCK_EX)) {
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to lock config file.'];
+    }
+    
+    $configContent = stream_get_contents($fp);
+    
+    $pattern = "/define\('EXCLUDED_CHAT_IDS',\s*(\[[\s\S]*?\]);/";
+    preg_match($pattern, $configContent, $matches);
+    
+    $currentChats = [];
+    if (isset($matches[1])) {
+        eval('$currentChats = ' . $matches[1] . ';');
+    }
+    
+    if (isset($currentChats[$chatId])) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => "Chat ID '{$chatId}' is already in the excluded list."];
+    }
+    
+    $currentChats[$chatId] = [
+        'id' => $chatId,
+        'name' => $chatName,
+        'type' => $chatType
+    ];
+    
+    $arrayContent = var_export($currentChats, true);
+    $arrayContent = preg_replace('/^array\s*\(/', '[', $arrayContent);
+    $arrayContent = preg_replace('/\)$/', ']', $arrayContent);
+    $arrayContent = str_replace('array (', '[', $arrayContent);
+    $arrayContent = str_replace(')', ']', $arrayContent);
+    
+    $newDefine = "define('EXCLUDED_CHAT_IDS', " . $arrayContent . ");";
+    
+    $newContent = preg_replace($pattern, $newDefine, $configContent);
+    
+    rewind($fp);
+    ftruncate($fp, 0);
+    fwrite($fp, $newContent);
+    fflush($fp);
+    flock($fp, LOCK_UN);
+    fclose($fp);
+    
+    return ['success' => true, 'message' => "Chat '{$chatName}' (ID: {$chatId}) added successfully!"];
+}
+
+function removeExcludedChatId($chatId) {
+    $configFile = __DIR__ . '/config.php';
+    
+    $fp = fopen($configFile, 'c+');
+    if (!$fp) {
+        return ['success' => false, 'message' => 'Failed to open config file.'];
+    }
+    
+    if (!flock($fp, LOCK_EX)) {
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to lock config file.'];
+    }
+    
+    $configContent = stream_get_contents($fp);
+    
+    $pattern = "/define\('EXCLUDED_CHAT_IDS',\s*(\[[\s\S]*?\]);/";
+    preg_match($pattern, $configContent, $matches);
+    
+    $currentChats = [];
+    if (isset($matches[1])) {
+        eval('$currentChats = ' . $matches[1] . ';');
+    }
+    
+    if (!isset($currentChats[$chatId])) {
+        flock($fp, LOCK_UN);
+        fclose($fp);
+        return ['success' => false, 'message' => "Chat ID '{$chatId}' not found in excluded list."];
+    }
+    
+    $chatName = $currentChats[$chatId]['name'] ?? 'Unknown';
+    unset($currentChats[$chatId]);
+    
+    $arrayContent = var_export($currentChats, true);
+    $arrayContent = preg_replace('/^array\s*\(/', '[', $arrayContent);
+    $arrayContent = preg_replace('/\)$/', ']', $arrayContent);
+    $arrayContent = str_replace('array (', '[', $arrayContent);
+    $arrayContent = str_replace(')', ']', $arrayContent);
+    
+    if (empty($currentChats)) {
+        $newDefine = "define('EXCLUDED_CHAT_IDS', []);";
+    } else {
+        $newDefine = "define('EXCLUDED_CHAT_IDS', " . $arrayContent . ");";
+    }
+    
+    $newContent = preg_replace($pattern, $newDefine, $configContent);
+    
+    rewind($fp);
+    ftruncate($fp, 0);
+    fwrite($fp, $newContent);
+    fflush($fp);
+    flock($fp, LOCK_UN);
+    fclose($fp);
+    
+    return ['success' => true, 'message' => "Chat '{$chatName}' (ID: {$chatId}) removed successfully!"];
+}
+
+function clearExcludedChatIds() {
+    $configFile = __DIR__ . '/config.php';
+    
+    $fp = fopen($configFile, 'c+');
+    if (!$fp) {
+        return ['success' => false, 'message' => 'Failed to open config file.'];
+    }
+    
+    if (!flock($fp, LOCK_EX)) {
+        fclose($fp);
+        return ['success' => false, 'message' => 'Failed to lock config file.'];
+    }
+    
+    $configContent = stream_get_contents($fp);
+    
+    $newDefine = "define('EXCLUDED_CHAT_IDS', []);";
+    
+    $pattern = "/define\('EXCLUDED_CHAT_IDS',\s*(\[[\s\S]*?\]);/";
+    $newContent = preg_replace($pattern, $newDefine, $configContent);
+    
+    rewind($fp);
+    ftruncate($fp, 0);
+    fwrite($fp, $newContent);
+    fflush($fp);
+    flock($fp, LOCK_UN);
+    fclose($fp);
+    
+    return ['success' => true, 'message' => 'All excluded chat IDs cleared successfully!'];
+}
+
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -435,6 +606,51 @@ function clearExcludedUsernames() {
             margin-bottom: 20px;
         }
         .warning-box p { margin: 0; color: #856404; font-size: 14px; }
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+        }
+        select:focus { outline: none; border-color: #667eea; }
+        .chat-badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .badge-channel { background: #e3f2fd; color: #1976D2; }
+        .badge-group { background: #f3e5f5; color: #7b1fa2; }
+        .badge-individual { background: #e8f5e9; color: #2e7d32; }
+        .chat-info {
+            display: flex;
+            align-items: center;
+            flex: 1;
+        }
+        .chat-name {
+            font-weight: 600;
+            color: #333;
+            margin-right: 8px;
+        }
+        .chat-id {
+            font-family: 'Courier New', monospace;
+            color: #999;
+            font-size: 13px;
+        }
+        .folder-section {
+            margin-bottom: 25px;
+        }
+        .folder-title {
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #e0e0e0;
+        }
     </style>
 </head>
 <body>
@@ -445,7 +661,7 @@ function clearExcludedUsernames() {
                 <button type="submit" name="action" value="logout" class="logout-btn">🚪 Logout</button>
             </form>
             <h1>🤖 Telegram Bot Configuration</h1>
-            <p>Manage Excluded Users by Username</p>
+            <p>Manage Excluded Users & Chats</p>
         </div>
         
         <div class="content">
@@ -502,6 +718,103 @@ function clearExcludedUsernames() {
                                 🗑️ Clear All
                             </button>
                         </form>
+                    <?php endif; ?>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>💬 Add Excluded Chat ID</h2>
+                <div class="info-box">
+                    <p><strong>ℹ️ Info:</strong> Messages from these chat IDs will NOT be forwarded. You can exclude channels, groups, or individual chats.</p>
+                </div>
+                <form method="POST">
+                    <?php echo getCsrfField(); ?>
+                    <div class="form-group">
+                        <label for="chat_id">Chat ID:</label>
+                        <input type="text" id="chat_id" name="chat_id" placeholder="Enter chat ID (e.g., -1001234567890)" required>
+                        <small style="color: #666; font-size: 13px;">Chat IDs can be positive or negative numbers. Use a bot like @userinfobot to find chat IDs.</small>
+                    </div>
+                    <div class="form-group">
+                        <label for="chat_name">Chat Name (optional):</label>
+                        <input type="text" id="chat_name" name="chat_name" placeholder="Enter a friendly name (e.g., My Group Chat)">
+                    </div>
+                    <div class="form-group">
+                        <label for="chat_type">Chat Type:</label>
+                        <select id="chat_type" name="chat_type" required>
+                            <option value="individual">👤 Individual Chat</option>
+                            <option value="group">👥 Group Chat</option>
+                            <option value="channel">📢 Channel</option>
+                        </select>
+                    </div>
+                    <button type="submit" name="action" value="add_chat" class="btn btn-primary">➕ Add Chat ID</button>
+                </form>
+            </div>
+            
+            <div class="section">
+                <h2>🗂️ Excluded Chat IDs</h2>
+                <div class="excluded-list">
+                    <?php if (empty($excludedChatIds)): ?>
+                        <div class="empty-state">
+                            <p>No excluded chat IDs yet.<br>Add one above to get started.</p>
+                        </div>
+                    <?php else:
+                        $folders = [
+                            'channel' => ['title' => '📢 Channels', 'items' => []],
+                            'group' => ['title' => '👥 Groups', 'items' => []],
+                            'individual' => ['title' => '👤 Individual Chats', 'items' => []]
+                        ];
+                        
+                        foreach ($excludedChatIds as $chatId => $chatInfo) {
+                            $type = $chatInfo['type'] ?? 'individual';
+                            if (isset($folders[$type])) {
+                                $folders[$type]['items'][$chatId] = $chatInfo;
+                            }
+                        }
+                        
+                        $hasAnyItems = false;
+                        foreach ($folders as $type => $folder) {
+                            if (!empty($folder['items'])) {
+                                $hasAnyItems = true;
+                                ?>
+                                <div class="folder-section">
+                                    <div class="folder-title"><?php echo $folder['title']; ?></div>
+                                    <?php foreach ($folder['items'] as $chatId => $chatInfo): ?>
+                                        <div class="excluded-item">
+                                            <div class="chat-info">
+                                                <span class="chat-name"><?php echo htmlspecialchars($chatInfo['name'] ?? 'Unknown Chat'); ?></span>
+                                                <span class="chat-id">(ID: <?php echo htmlspecialchars($chatId); ?>)</span>
+                                                <span class="chat-badge badge-<?php echo htmlspecialchars($type); ?>">
+                                                    <?php echo ucfirst($type); ?>
+                                                </span>
+                                            </div>
+                                            <form method="POST" style="display: inline;">
+                                                <?php echo getCsrfField(); ?>
+                                                <input type="hidden" name="chat_id" value="<?php echo htmlspecialchars($chatId); ?>">
+                                                <button type="submit" name="action" value="remove_chat" class="btn btn-danger btn-small" onclick="return confirm('Remove chat \'<?php echo htmlspecialchars($chatInfo['name'] ?? 'Unknown'); ?>\'?');">
+                                                    🗑️ Remove
+                                                </button>
+                                            </form>
+                                        </div>
+                                    <?php endforeach; ?>
+                                </div>
+                                <?php
+                            }
+                        }
+                        
+                        if (!$hasAnyItems): ?>
+                            <div class="empty-state">
+                                <p>No excluded chat IDs yet.<br>Add one above to get started.</p>
+                            </div>
+                        <?php endif; ?>
+                        
+                        <?php if ($hasAnyItems): ?>
+                            <form method="POST" style="margin-top: 20px;">
+                                <?php echo getCsrfField(); ?>
+                                <button type="submit" name="action" value="clear_chats" class="btn btn-danger" onclick="return confirm('Clear ALL excluded chat IDs?');">
+                                    🗑️ Clear All Chat IDs
+                                </button>
+                            </form>
+                        <?php endif; ?>
                     <?php endif; ?>
                 </div>
             </div>
