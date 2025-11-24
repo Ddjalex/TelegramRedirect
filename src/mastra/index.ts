@@ -251,6 +251,23 @@ export const mastra = new Mastra({
               }
               // ========================================================================
               
+              // ========== EXCLUDE SPECIFIC FOLDERS/CHATS FROM FORWARDING ==========
+              // Messages from these chat IDs will NOT be forwarded (e.g., Personal Meet folder chats)
+              const chatId = messageData.chat?.id?.toString();
+              const EXCLUDED_CHAT_IDS = process.env.EXCLUDED_CHAT_IDS 
+                ? process.env.EXCLUDED_CHAT_IDS.split(',').map(id => id.trim())
+                : []; // Default: no exclusions
+              
+              // Check if this chat is excluded from forwarding
+              if (chatId && EXCLUDED_CHAT_IDS.includes(chatId)) {
+                logger?.info("⏭️ [Telegram] Skipping - chat is in excluded list", {
+                  chatId,
+                  excludedIds: EXCLUDED_CHAT_IDS,
+                });
+                return c.json({ ok: true, skipped: true, reason: "Chat excluded from forwarding" });
+              }
+              // ====================================================================
+              
               // Detect message type and extract content
               let mediaType = "text";
               let fileId = "";

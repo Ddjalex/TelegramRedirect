@@ -44,6 +44,19 @@ if (!empty(ALLOWED_CHAT_IDS) && !in_array((string)$senderId, ALLOWED_CHAT_IDS)) 
 }
 // ========================================================================
 
+// ========== EXCLUDE SPECIFIC FOLDERS/CHATS FROM FORWARDING ==========
+// Messages from these chat IDs will NOT be forwarded (e.g., Personal Meet folder)
+$chatId = $message['chat']['id'] ?? null;
+if (!empty(EXCLUDED_CHAT_IDS) && $chatId && in_array((string)$chatId, EXCLUDED_CHAT_IDS)) {
+    logMessage("Skipping - chat is in excluded list", [
+        'chat_id' => $chatId,
+        'excluded_ids' => EXCLUDED_CHAT_IDS
+    ]);
+    echo json_encode(['ok' => true, 'skipped' => true, 'reason' => 'Chat excluded from forwarding']);
+    exit;
+}
+// ====================================================================
+
 // Detect message type and extract content
 $messageData = extractMessageData($message);
 

@@ -1,6 +1,6 @@
 # 📋 Chat ID Configuration Guide
 
-Your bot now has TWO different chat ID settings:
+Your bot now has THREE different chat ID settings:
 
 ## 🔵 1. WHO CAN SEND MESSAGES TO THE BOT (Source/Allowed Chat IDs)
 
@@ -51,7 +51,54 @@ define('ALLOWED_CHAT_IDS', []);
 
 ---
 
-## 🔴 2. WHERE MESSAGES ARE FORWARDED TO (Target/Destination Chat ID)
+## 🟡 2. EXCLUDE SPECIFIC FOLDERS/CHATS FROM FORWARDING (NEW!)
+
+This controls **which folders/chats to SKIP** (not forward).
+
+### Current Setting:
+- ✅ **No exclusions - all messages are forwarded**
+
+### Where to Change It:
+
+#### For Node.js Bot (Replit):
+
+**Option A: Use Environment Variable (Easy)**
+1. Go to **Secrets** panel (🔒 icon)
+2. Add new secret: `EXCLUDED_CHAT_IDS`
+3. Set value to chat IDs you want to exclude:
+   - Single: `123456789`
+   - Multiple: `123456789,987654321` (comma-separated)
+4. Restart workflow
+
+**Option B: Edit Code**
+- **File:** `src/mastra/index.ts`
+- **Line:** 260-262
+
+```javascript
+const EXCLUDED_CHAT_IDS = process.env.EXCLUDED_CHAT_IDS 
+  ? process.env.EXCLUDED_CHAT_IDS.split(',').map(id => id.trim())
+  : []; // Add chat IDs here to exclude them
+```
+
+#### For PHP Bot (cPanel):
+
+- **File:** `cpanel-bot/config.php`
+- **Line:** 27
+
+```php
+// Exclude chats from forwarding (Personal Meet folder example)
+define('EXCLUDED_CHAT_IDS', ['123456789', '987654321']);
+
+// No exclusions (forward everything)
+define('EXCLUDED_CHAT_IDS', []);
+```
+
+### 📖 Full Guide:
+See **`HOW_TO_EXCLUDE_FOLDERS.md`** for detailed instructions on how to exclude your "Personal Meet" folder!
+
+---
+
+## 🔴 3. WHERE MESSAGES ARE FORWARDED TO (Target/Destination Chat ID)
 
 This controls **where the bot sends** the forwarded messages.
 
@@ -94,46 +141,55 @@ define('TARGET_CHAT_ID', '7503130172'); // Change this
 | Setting | Node.js (Replit) | PHP (cPanel) |
 |---------|------------------|--------------|
 | **Who can send to bot** | `383870190` | `383870190` |
+| **Excluded chats (don't forward)** | None | None |
 | **Where messages go to** | `7503130172` | `7503130172` |
 
 ---
 
 ## 🎯 EXAMPLES
 
-### Example 1: Only user 383870190 can trigger, forward to 7503130172
+### Example 1: Basic setup (current)
 ```
 ALLOWED_CHAT_IDS = 383870190
+EXCLUDED_CHAT_IDS = (empty)
 TARGET_CHAT_ID = 7503130172
 ```
-✅ This is your **CURRENT** setup!
+✅ User 383870190 can send, all chats forward to 7503130172
 
-### Example 2: Multiple users can trigger, forward to one chat
-```
-ALLOWED_CHAT_IDS = 383870190,7503130172,111222333
-TARGET_CHAT_ID = 7503130172
-```
-
-### Example 3: Accept from ALL users, forward to specific chat
-```
-ALLOWED_CHAT_IDS = [] (empty - no filter)
-TARGET_CHAT_ID = 7503130172
-```
-
-### Example 4: Only one user can trigger, forward to different chat
+### Example 2: Exclude "Personal Meet" folder
 ```
 ALLOWED_CHAT_IDS = 383870190
-TARGET_CHAT_ID = 999888777
+EXCLUDED_CHAT_IDS = 123456789,987654321
+TARGET_CHAT_ID = 7503130172
 ```
+✅ User 383870190 can send, but chats 123456789 & 987654321 are skipped
+
+### Example 3: Multiple users, with exclusions
+```
+ALLOWED_CHAT_IDS = 383870190,7503130172
+EXCLUDED_CHAT_IDS = 555666777
+TARGET_CHAT_ID = 7503130172
+```
+✅ Two users can send, chat 555666777 is excluded from forwarding
+
+### Example 4: Accept from all, but exclude private chats
+```
+ALLOWED_CHAT_IDS = [] (accept all)
+EXCLUDED_CHAT_IDS = 111222,333444
+TARGET_CHAT_ID = 7503130172
+```
+✅ Anyone can send, but chats 111222 & 333444 won't forward
 
 ---
 
 ## 🔍 VISUAL EXPLANATION
 
 ```
-User 383870190 → Sends message → BOT → Forwards to → Chat 7503130172
-     ↑                                                       ↑
- ALLOWED_CHAT_IDS                                    TARGET_CHAT_ID
-(Who can send)                                    (Where it goes)
+User 383870190 → Sends message → BOT → Check if excluded? → Forwards to → Chat 7503130172
+     ↑                               ↓                                          ↑
+ ALLOWED_CHAT_IDS          If chat in EXCLUDED_CHAT_IDS?               TARGET_CHAT_ID
+(Who can send)                  ↓ Yes: Skip                          (Where it goes)
+                                ↓ No: Forward
 ```
 
 ---
@@ -143,6 +199,10 @@ User 383870190 → Sends message → BOT → Forwards to → Chat 7503130172
 ### To Allow Multiple Senders:
 **Replit:** Set `ALLOWED_CHAT_IDS` = `383870190,7503130172`  
 **cPanel:** `define('ALLOWED_CHAT_IDS', ['383870190', '7503130172']);`
+
+### To Exclude Folders/Chats (NEW!):
+**Replit:** Set `EXCLUDED_CHAT_IDS` = `123456789,987654321`  
+**cPanel:** `define('EXCLUDED_CHAT_IDS', ['123456789', '987654321']);`
 
 ### To Accept From All Users:
 **Replit:** Delete `ALLOWED_CHAT_IDS` variable (or leave empty)  
@@ -162,7 +222,15 @@ User 383870190 → Sends message → BOT → Forwards to → Chat 7503130172
 
 ---
 
+## 📚 Related Guides
+
+- **How to exclude folders:** See `HOW_TO_EXCLUDE_FOLDERS.md`
+- **How to change target chat:** See `HOW_TO_CHANGE_CHAT_ID.md`
+
+---
+
 Need to change who can send to the bot? **Change ALLOWED_CHAT_IDS**  
+Need to exclude certain folders? **Change EXCLUDED_CHAT_IDS** (NEW!)  
 Need to change where messages go? **Change TARGET_CHAT_ID**
 
-Both settings are independent! 🎉
+All three settings are independent! 🎉
