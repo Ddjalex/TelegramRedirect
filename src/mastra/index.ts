@@ -210,46 +210,68 @@ export const mastra = new Mastra({
       // ...registerStripeWebhook({ ... }),
 
       // ======================================================================
-      // Telegram Webhook Trigger
+      // Telegram Webhook Trigger - Direct approach
       // ======================================================================
-      ...registerTelegramTrigger({
-        triggerType: "telegram/message",
-        handler: async (mastra, triggerInfo) => {
-          const logger = mastra.getLogger();
-          const chatId = triggerInfo.payload?.message?.chat?.id?.toString();
-          
-          logger?.info("🎯 [Telegram Trigger] Received message", {
-            chatId,
-            userName: triggerInfo.params.userName,
-            message: triggerInfo.params.message,
-          });
+      {
+        path: "/api/telegram/webhook",
+        method: "POST",
+        createHandler: async ({ mastra }) => {
+          return async (c) => {
+            const logger = mastra.getLogger();
+            try {
+              const payload = await c.req.json();
+              
+              logger?.info("📝 [Telegram] Webhook received", { payload });
 
-          // Only process messages from chat ID 383870190
-          if (chatId !== "383870190") {
-            logger?.info("⏭️ [Telegram Trigger] Skipping message - not from monitored chat", {
-              chatId,
-              monitoredChatId: "383870190",
-            });
-            return;
-          }
+              // Check if this is a message
+              if (!payload.message || !payload.message.text) {
+                logger?.info("⏭️ [Telegram] Skipping - not a text message");
+                return c.json({ ok: true, skipped: true });
+              }
 
-          logger?.info("✅ [Telegram Trigger] Processing message from monitored chat");
+              const chatId = payload.message.chat?.id?.toString();
+              const userName = payload.message.from?.username || "unknown";
+              const message = payload.message.text;
 
-          // Create a unique thread ID for this user
-          const threadId = `telegram-user-${triggerInfo.params.userName}`;
+              logger?.info("🎯 [Telegram Trigger] Received message", {
+                chatId,
+                userName,
+                message,
+              });
 
-          // Start the workflow
-          const run = await telegramForwardWorkflow.createRunAsync();
-          await run.start({
-            inputData: {
-              threadId,
-              userName: triggerInfo.params.userName,
-              message: triggerInfo.params.message,
-              chatId,
-            },
-          });
-        }
-      }),
+              // Only process messages from chat ID 383870190
+              if (chatId !== "383870190") {
+                logger?.info("⏭️ [Telegram Trigger] Skipping message - not from monitored chat", {
+                  chatId,
+                  monitoredChatId: "383870190",
+                });
+                return c.json({ ok: true, skipped: true });
+              }
+
+              logger?.info("✅ [Telegram Trigger] Processing message from monitored chat");
+
+              // Create a unique thread ID for this user
+              const threadId = `telegram-user-${userName}`;
+
+              // Start the workflow
+              const run = await telegramForwardWorkflow.createRunAsync();
+              await run.start({
+                inputData: {
+                  threadId,
+                  userName,
+                  message,
+                  chatId,
+                },
+              });
+
+              return c.json({ ok: true, message: "Message forwarded" });
+            } catch (error) {
+              logger?.error("❌ [Telegram] Error handling webhook:", error);
+              return c.json({ ok: false, error: String(error) }, 500);
+            }
+          };
+        },
+      },
     ],
   },
   logger:
