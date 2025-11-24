@@ -60,7 +60,7 @@ args = "Start inngest server"
 
 [[workflows.workflow.tasks]]
 task = "workflow.run"
-args = "Start application"
+args = "PHP Admin Panel"
 
 [[workflows.workflow]]
 name = "Start inngest server"
@@ -74,12 +74,12 @@ task = "shell.exec"
 args = "./scripts/inngest.sh"
 
 [[workflows.workflow]]
-name = "Start application"
+name = "PHP Admin Panel"
 author = "agent"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "./node_modules/.bin/mastra dev"
+args = "cd cpanel-bot && php -S 0.0.0.0:5000"
 waitForPort = 5000
 
 [workflows.workflow.metadata]
