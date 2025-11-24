@@ -9,8 +9,9 @@ import { z } from "zod";
 
 import { sharedPostgresStorage } from "./storage";
 import { inngest, inngestServe } from "./inngest";
-import { exampleWorkflow } from "./workflows/exampleWorkflow"; // Replace with your own workflow
-import { exampleAgent } from "./agents/exampleAgent"; // Replace with your own agent
+import { telegramForwardWorkflow } from "./workflows/telegramForwardWorkflow";
+import { telegramForwardAgent } from "./agents/telegramForwardAgent";
+import { registerTelegramTrigger } from "../triggers/telegramTriggers";
 
 class ProductionPinoLogger extends MastraLogger {
   protected logger: pino.Logger;
@@ -56,9 +57,9 @@ class ProductionPinoLogger extends MastraLogger {
 export const mastra = new Mastra({
   storage: sharedPostgresStorage,
   // Register your workflows here
-  workflows: {},
+  workflows: { telegramForwardWorkflow },
   // Register your agents here
-  agents: {},
+  agents: { telegramForwardAgent },
   mcpServers: {
     allTools: new MCPServer({
       name: "allTools",
@@ -208,6 +209,34 @@ export const mastra = new Mastra({
       // ...registerGithubTrigger({ ... }),
       // ...registerSlackTrigger({ ... }),
       // ...registerStripeWebhook({ ... }),
+
+      // ======================================================================
+      // Telegram Webhook Trigger
+      // ======================================================================
+      ...registerTelegramTrigger({
+        triggerType: "telegram/message",
+        handler: async (mastra, triggerInfo) => {
+          const logger = mastra.getLogger();
+          logger?.info("🎯 [Telegram Trigger] Processing message", {
+            userName: triggerInfo.params.userName,
+            message: triggerInfo.params.message,
+          });
+
+          // Create a unique thread ID for this user
+          const threadId = `telegram-user-${triggerInfo.params.userName}`;
+
+          // Start the workflow
+          const run = await telegramForwardWorkflow.createRunAsync();
+          await run.start({
+            inputData: {
+              threadId,
+              userName: triggerInfo.params.userName,
+              message: triggerInfo.params.message,
+              chatId: triggerInfo.payload?.message?.chat?.id?.toString(),
+            },
+          });
+        }
+      }),
     ],
   },
   logger:
