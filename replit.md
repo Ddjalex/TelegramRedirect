@@ -4,6 +4,10 @@ This is a Mastra-based agent automation project built for Replit's automation pl
 
 The project uses TypeScript with modern ES modules and is designed to run on Node.js 20.9.0 or later. It integrates with the Mastra framework for agent orchestration, Inngest for durable workflow execution, and supports multiple storage backends including PostgreSQL and LibSQL.
 
+## cPanel Bot Management
+
+The project includes a PHP-based Telegram bot in the `cpanel-bot` folder for cPanel hosting. A web interface (`cpanel-bot/index.php`) provides easy management of excluded chat IDs through a browser, allowing you to add/remove chat IDs that should not be forwarded by the bot.
+
 # User Preferences
 
 Preferred communication style: Simple, everyday language.
