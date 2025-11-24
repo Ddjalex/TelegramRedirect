@@ -31,10 +31,6 @@ localPort = 8289
 externalPort = 3001
 
 [[ports]]
-localPort = 34275
-externalPort = 5173
-
-[[ports]]
 localPort = 37103
 externalPort = 5000
 
@@ -52,6 +48,10 @@ externalPort = 4200
 
 [[ports]]
 localPort = 50053
+externalPort = 80
+
+[[ports]]
+localPort = 5000
 externalPort = 80
 
 [workflows]
@@ -114,4 +114,4 @@ outputType = "console"
 
 [userenv.shared]
 TARGET_CHAT_ID = "7503130172"
-ALLOWED_CHAT_IDS = "383870190"
+ALLOWED_CHAT_IDS = "383870190,7960686321"
