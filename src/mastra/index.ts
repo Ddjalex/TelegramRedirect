@@ -235,41 +235,15 @@ export const mastra = new Mastra({
               const senderId = messageData.from?.id?.toString();
               const senderUserName = messageData.from?.username || messageData.from?.first_name || "unknown";
               const message = messageData.text;
-              
-              // For business messages: check if this is a message TO customer 383870190
-              // In business context, we need to check the "from" field to see who sent it
-              let isToMonitoredChat = false;
-              let actualChatId = "383870190"; // The chat we're monitoring
-              
-              if (payload.business_message) {
-                // Business message: customer 383870190 is the sender (from.id)
-                // We want to forward messages FROM this customer to the forwarding destination
-                isToMonitoredChat = senderId === "383870190";
-              } else {
-                // Regular message: check the chat ID
-                const chatId = messageData.chat?.id?.toString();
-                isToMonitoredChat = chatId === "383870190";
-                actualChatId = chatId || "383870190";
-              }
 
               logger?.info("🎯 [Telegram Trigger] Received message", {
                 senderId,
                 senderUserName,
                 message,
                 isBusinessMessage: !!payload.business_message,
-                isToMonitoredChat,
               });
 
-              // Only process messages to/from chat 383870190
-              if (!isToMonitoredChat) {
-                logger?.info("⏭️ [Telegram Trigger] Skipping message - not to/from monitored chat", {
-                  senderId,
-                  monitoredChat: "383870190",
-                });
-                return c.json({ ok: true, skipped: true });
-              }
-
-              logger?.info("✅ [Telegram Trigger] Processing message to/from monitored chat");
+              logger?.info("✅ [Telegram Trigger] Processing and forwarding message");
 
               // Create a unique thread ID for this sender
               const threadId = `telegram-sender-${senderId}`;
@@ -281,7 +255,7 @@ export const mastra = new Mastra({
                   threadId,
                   userName: senderUserName,
                   message,
-                  chatId: actualChatId,
+                  chatId: senderId,
                 },
               });
 
