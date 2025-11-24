@@ -216,10 +216,24 @@ export const mastra = new Mastra({
         triggerType: "telegram/message",
         handler: async (mastra, triggerInfo) => {
           const logger = mastra.getLogger();
-          logger?.info("🎯 [Telegram Trigger] Processing message", {
+          const chatId = triggerInfo.payload?.message?.chat?.id?.toString();
+          
+          logger?.info("🎯 [Telegram Trigger] Received message", {
+            chatId,
             userName: triggerInfo.params.userName,
             message: triggerInfo.params.message,
           });
+
+          // Only process messages from chat ID 383870190
+          if (chatId !== "383870190") {
+            logger?.info("⏭️ [Telegram Trigger] Skipping message - not from monitored chat", {
+              chatId,
+              monitoredChatId: "383870190",
+            });
+            return;
+          }
+
+          logger?.info("✅ [Telegram Trigger] Processing message from monitored chat");
 
           // Create a unique thread ID for this user
           const threadId = `telegram-user-${triggerInfo.params.userName}`;
@@ -231,7 +245,7 @@ export const mastra = new Mastra({
               threadId,
               userName: triggerInfo.params.userName,
               message: triggerInfo.params.message,
-              chatId: triggerInfo.payload?.message?.chat?.id?.toString(),
+              chatId,
             },
           });
         }
