@@ -27,10 +27,6 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 8289
-externalPort = 3001
-
-[[ports]]
 localPort = 37103
 externalPort = 5000
 
@@ -81,13 +77,13 @@ args = "./scripts/inngest.sh"
 name = "PHP Admin Panel"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "cd cpanel-bot && php -S 0.0.0.0:5000 -t ."
 waitForPort = 5000
-
-[workflows.workflow.metadata]
-outputType = "webview"
 
 [userenv]
 
