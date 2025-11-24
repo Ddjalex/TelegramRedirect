@@ -113,8 +113,8 @@ if (!isset($_SESSION['csrf_token'])) {
     $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
 }
 
-function validateChatId($chatId) {
-    return preg_match('/^-?\d{1,20}$/', $chatId);
+function validateUsername($username) {
+    return preg_match('/^[a-zA-Z0-9_]{1,32}$/', $username);
 }
 
 function getCsrfField() {
@@ -138,28 +138,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
         $action = $_POST['action'] ?? '';
         
-        if ($action === 'add' && !empty($_POST['chat_id'])) {
-            $newChatId = trim($_POST['chat_id']);
-            if (!validateChatId($newChatId)) {
-                $message = 'Invalid chat ID format. Must be a number (optionally negative).';
+        if ($action === 'add' && !empty($_POST['username'])) {
+            $newUsername = trim(str_replace('@', '', $_POST['username']));
+            if (!validateUsername($newUsername)) {
+                $message = 'Invalid username format. Use only letters, numbers, and underscores (1-32 characters).';
                 $messageType = 'error';
             } else {
-                $result = addExcludedChatId($newChatId);
+                $result = addExcludedUsername($newUsername);
                 $message = $result['message'];
                 $messageType = $result['success'] ? 'success' : 'error';
             }
-        } elseif ($action === 'remove' && !empty($_POST['chat_id'])) {
-            $chatIdToRemove = trim($_POST['chat_id']);
-            if (!validateChatId($chatIdToRemove)) {
-                $message = 'Invalid chat ID format.';
+        } elseif ($action === 'remove' && !empty($_POST['username'])) {
+            $usernameToRemove = trim(str_replace('@', '', $_POST['username']));
+            if (!validateUsername($usernameToRemove)) {
+                $message = 'Invalid username format.';
                 $messageType = 'error';
             } else {
-                $result = removeExcludedChatId($chatIdToRemove);
+                $result = removeExcludedUsername($usernameToRemove);
                 $message = $result['message'];
                 $messageType = $result['success'] ? 'success' : 'error';
             }
         } elseif ($action === 'clear') {
-            $result = clearExcludedChatIds();
+            $result = clearExcludedUsernames();
             $message = $result['message'];
             $messageType = $result['success'] ? 'success' : 'error';
         } elseif ($action === 'logout') {
@@ -170,18 +170,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     
     $configContent = file_get_contents(__DIR__ . '/config.php');
-    preg_match("/define\('EXCLUDED_CHAT_IDS',\s*\[(.*?)\]\);/s", $configContent, $matches);
-    $excludedIds = [];
+    $pattern = "/define\('EXCLUDED_USERNAMES',\s*(?:\[(.*?)\]|array\((.*?)\))\);/s";
+    preg_match($pattern, $configContent, $matches);
+    $excludedUsernames = [];
     if (isset($matches[1]) && !empty(trim($matches[1]))) {
-        $idsString = $matches[1];
-        preg_match_all("/'([^']+)'/", $idsString, $idMatches);
-        $excludedIds = $idMatches[1] ?? [];
+        preg_match_all("/'([^']+)'/", $matches[1], $usernameMatches);
+        $excludedUsernames = $usernameMatches[1] ?? [];
+    } elseif (isset($matches[2]) && !empty(trim($matches[2]))) {
+        preg_match_all("/'([^']+)'/", $matches[2], $usernameMatches);
+        $excludedUsernames = $usernameMatches[1] ?? [];
     }
 } else {
-    $excludedIds = EXCLUDED_CHAT_IDS;
+    $excludedUsernames = defined('EXCLUDED_USERNAMES') ? EXCLUDED_USERNAMES : [];
 }
 
-function addExcludedChatId($chatId) {
+function addExcludedUsername($username) {
     $configFile = __DIR__ . '/config.php';
     
     $fp = fopen($configFile, 'c+');
@@ -196,31 +199,31 @@ function addExcludedChatId($chatId) {
     
     $configContent = stream_get_contents($fp);
     
-    $pattern = "/define\('EXCLUDED_CHAT_IDS',\s*(?:\[(.*?)\]|array\((.*?)\))\);/s";
+    $pattern = "/define\('EXCLUDED_USERNAMES',\s*(?:\[(.*?)\]|array\((.*?)\))\);/s";
     preg_match($pattern, $configContent, $matches);
-    $currentIds = [];
+    $currentUsernames = [];
     
     if (isset($matches[1]) && !empty(trim($matches[1]))) {
-        preg_match_all("/'([^']+)'/", $matches[1], $idMatches);
-        $currentIds = $idMatches[1] ?? [];
+        preg_match_all("/'([^']+)'/", $matches[1], $usernameMatches);
+        $currentUsernames = $usernameMatches[1] ?? [];
     } elseif (isset($matches[2]) && !empty(trim($matches[2]))) {
-        preg_match_all("/'([^']+)'/", $matches[2], $idMatches);
-        $currentIds = $idMatches[1] ?? [];
+        preg_match_all("/'([^']+)'/", $matches[2], $usernameMatches);
+        $currentUsernames = $usernameMatches[1] ?? [];
     }
     
-    if (in_array($chatId, $currentIds, true)) {
+    if (in_array(strtolower($username), array_map('strtolower', $currentUsernames), true)) {
         flock($fp, LOCK_UN);
         fclose($fp);
-        return ['success' => false, 'message' => "Chat ID '$chatId' is already in the excluded list."];
+        return ['success' => false, 'message' => "Username '@$username' is already in the excluded list."];
     }
     
-    $currentIds[] = $chatId;
+    $currentUsernames[] = $username;
     
-    $arrayContent = var_export($currentIds, true);
+    $arrayContent = var_export($currentUsernames, true);
     $arrayContent = preg_replace('/^array\s*\(/', '[', $arrayContent);
     $arrayContent = preg_replace('/\)$/', ']', $arrayContent);
     
-    $newDefine = "define('EXCLUDED_CHAT_IDS', " . $arrayContent . ");";
+    $newDefine = "define('EXCLUDED_USERNAMES', " . $arrayContent . ");";
     
     $newContent = preg_replace($pattern, $newDefine, $configContent);
     
@@ -231,10 +234,10 @@ function addExcludedChatId($chatId) {
     flock($fp, LOCK_UN);
     fclose($fp);
     
-    return ['success' => true, 'message' => "Chat ID '$chatId' added successfully!"];
+    return ['success' => true, 'message' => "Username '@$username' added successfully!"];
 }
 
-function removeExcludedChatId($chatId) {
+function removeExcludedUsername($username) {
     $configFile = __DIR__ . '/config.php';
     
     $fp = fopen($configFile, 'c+');
@@ -249,30 +252,30 @@ function removeExcludedChatId($chatId) {
     
     $configContent = stream_get_contents($fp);
     
-    $pattern = "/define\('EXCLUDED_CHAT_IDS',\s*(?:\[(.*?)\]|array\((.*?)\))\);/s";
+    $pattern = "/define\('EXCLUDED_USERNAMES',\s*(?:\[(.*?)\]|array\((.*?)\))\);/s";
     preg_match($pattern, $configContent, $matches);
-    $currentIds = [];
+    $currentUsernames = [];
     
     if (isset($matches[1]) && !empty(trim($matches[1]))) {
-        preg_match_all("/'([^']+)'/", $matches[1], $idMatches);
-        $currentIds = $idMatches[1] ?? [];
+        preg_match_all("/'([^']+)'/", $matches[1], $usernameMatches);
+        $currentUsernames = $usernameMatches[1] ?? [];
     } elseif (isset($matches[2]) && !empty(trim($matches[2]))) {
-        preg_match_all("/'([^']+)'/", $matches[2], $idMatches);
-        $currentIds = $idMatches[1] ?? [];
+        preg_match_all("/'([^']+)'/", $matches[2], $usernameMatches);
+        $currentUsernames = $usernameMatches[1] ?? [];
     }
     
-    $currentIds = array_filter($currentIds, function($id) use ($chatId) {
-        return $id !== $chatId;
+    $currentUsernames = array_filter($currentUsernames, function($u) use ($username) {
+        return strcasecmp($u, $username) !== 0;
     });
-    $currentIds = array_values($currentIds);
+    $currentUsernames = array_values($currentUsernames);
     
-    if (empty($currentIds)) {
-        $newDefine = "define('EXCLUDED_CHAT_IDS', []);";
+    if (empty($currentUsernames)) {
+        $newDefine = "define('EXCLUDED_USERNAMES', []);";
     } else {
-        $arrayContent = var_export($currentIds, true);
+        $arrayContent = var_export($currentUsernames, true);
         $arrayContent = preg_replace('/^array\s*\(/', '[', $arrayContent);
         $arrayContent = preg_replace('/\)$/', ']', $arrayContent);
-        $newDefine = "define('EXCLUDED_CHAT_IDS', " . $arrayContent . ");";
+        $newDefine = "define('EXCLUDED_USERNAMES', " . $arrayContent . ");";
     }
     
     $newContent = preg_replace($pattern, $newDefine, $configContent);
@@ -284,10 +287,10 @@ function removeExcludedChatId($chatId) {
     flock($fp, LOCK_UN);
     fclose($fp);
     
-    return ['success' => true, 'message' => "Chat ID '$chatId' removed successfully!"];
+    return ['success' => true, 'message' => "Username '@$username' removed successfully!"];
 }
 
-function clearExcludedChatIds() {
+function clearExcludedUsernames() {
     $configFile = __DIR__ . '/config.php';
     
     $fp = fopen($configFile, 'c+');
@@ -302,9 +305,9 @@ function clearExcludedChatIds() {
     
     $configContent = stream_get_contents($fp);
     
-    $newDefine = "define('EXCLUDED_CHAT_IDS', []);";
+    $newDefine = "define('EXCLUDED_USERNAMES', []);";
     
-    $pattern = "/define\('EXCLUDED_CHAT_IDS',\s*(?:\[(.*?)\]|array\((.*?)\))\);/s";
+    $pattern = "/define\('EXCLUDED_USERNAMES',\s*(?:\[(.*?)\]|array\((.*?)\))\);/s";
     $newContent = preg_replace($pattern, $newDefine, $configContent);
     
     rewind($fp);
@@ -314,7 +317,7 @@ function clearExcludedChatIds() {
     flock($fp, LOCK_UN);
     fclose($fp);
     
-    return ['success' => true, 'message' => 'All excluded chat IDs cleared successfully!'];
+    return ['success' => true, 'message' => 'All excluded usernames cleared successfully!'];
 }
 
 ?>
@@ -414,7 +417,7 @@ function clearExcludedChatIds() {
             align-items: center;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
-        .chat-id { font-family: 'Courier New', monospace; font-weight: 600; color: #667eea; }
+        .username { font-family: 'Courier New', monospace; font-weight: 600; color: #667eea; }
         .empty-state { text-align: center; padding: 40px 20px; color: #999; }
         .info-box {
             background: #e7f3ff;
@@ -442,7 +445,7 @@ function clearExcludedChatIds() {
                 <button type="submit" name="action" value="logout" class="logout-btn">🚪 Logout</button>
             </form>
             <h1>🤖 Telegram Bot Configuration</h1>
-            <p>Manage Excluded Chat IDs</p>
+            <p>Manage Excluded Users by Username</p>
         </div>
         
         <div class="content">
@@ -457,35 +460,36 @@ function clearExcludedChatIds() {
             <?php endif; ?>
             
             <div class="section">
-                <h2>📝 Add Excluded Chat ID</h2>
+                <h2>📝 Add Excluded Username</h2>
                 <div class="info-box">
-                    <p><strong>ℹ️ Info:</strong> Messages from excluded chat IDs will NOT be forwarded. Chat IDs must be numbers (e.g., 123456789 or -987654321).</p>
+                    <p><strong>ℹ️ Info:</strong> Messages from these Telegram usernames will NOT be forwarded. Enter the username without the @ symbol (e.g., "john_doe" not "@john_doe").</p>
                 </div>
                 <form method="POST">
                     <?php echo getCsrfField(); ?>
                     <div class="form-group">
-                        <label for="chat_id">Chat ID to Exclude:</label>
-                        <input type="text" id="chat_id" name="chat_id" placeholder="Enter chat ID (e.g., 123456789)" pattern="-?\d+" required>
+                        <label for="username">Telegram Username to Exclude:</label>
+                        <input type="text" id="username" name="username" placeholder="Enter username (e.g., john_doe)" pattern="@?[a-zA-Z0-9_]{1,32}" required>
+                        <small style="color: #666; font-size: 13px;">Tip: You can include or omit the @ symbol - both work!</small>
                     </div>
-                    <button type="submit" name="action" value="add" class="btn btn-primary">➕ Add Chat ID</button>
+                    <button type="submit" name="action" value="add" class="btn btn-primary">➕ Add Username</button>
                 </form>
             </div>
             
             <div class="section">
-                <h2>🚫 Excluded Chat IDs</h2>
+                <h2>🚫 Excluded Usernames</h2>
                 <div class="excluded-list">
-                    <?php if (empty($excludedIds)): ?>
+                    <?php if (empty($excludedUsernames)): ?>
                         <div class="empty-state">
-                            <p>No excluded chat IDs yet.<br>Add one above to get started.</p>
+                            <p>No excluded usernames yet.<br>Add one above to get started.</p>
                         </div>
                     <?php else: ?>
-                        <?php foreach ($excludedIds as $chatId): ?>
+                        <?php foreach ($excludedUsernames as $username): ?>
                             <div class="excluded-item">
-                                <span class="chat-id"><?php echo htmlspecialchars($chatId); ?></span>
+                                <span class="username">@<?php echo htmlspecialchars($username); ?></span>
                                 <form method="POST" style="display: inline;">
                                     <?php echo getCsrfField(); ?>
-                                    <input type="hidden" name="chat_id" value="<?php echo htmlspecialchars($chatId); ?>">
-                                    <button type="submit" name="action" value="remove" class="btn btn-danger btn-small" onclick="return confirm('Remove chat ID <?php echo htmlspecialchars($chatId); ?>?');">
+                                    <input type="hidden" name="username" value="<?php echo htmlspecialchars($username); ?>">
+                                    <button type="submit" name="action" value="remove" class="btn btn-danger btn-small" onclick="return confirm('Remove @<?php echo htmlspecialchars($username); ?>?');">
                                         🗑️ Remove
                                     </button>
                                 </form>
@@ -494,11 +498,24 @@ function clearExcludedChatIds() {
                         
                         <form method="POST" style="margin-top: 20px;">
                             <?php echo getCsrfField(); ?>
-                            <button type="submit" name="action" value="clear" class="btn btn-danger" onclick="return confirm('Clear ALL excluded chat IDs?');">
+                            <button type="submit" name="action" value="clear" class="btn btn-danger" onclick="return confirm('Clear ALL excluded usernames?');">
                                 🗑️ Clear All
                             </button>
                         </form>
                     <?php endif; ?>
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📚 How to Find Telegram Usernames</h2>
+                <div class="info-box">
+                    <p><strong>Method 1:</strong> Ask the person! Their username appears as @username in Telegram.</p>
+                </div>
+                <div class="info-box">
+                    <p><strong>Method 2:</strong> In any chat with them, tap their name/photo to see their profile - username is shown there.</p>
+                </div>
+                <div class="info-box">
+                    <p><strong>Note:</strong> Not all Telegram users have usernames. If someone doesn't have a username set, this exclusion method won't work for them.</p>
                 </div>
             </div>
         </div>

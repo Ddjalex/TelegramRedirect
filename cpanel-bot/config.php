@@ -17,11 +17,11 @@ define('TARGET_CHAT_ID', '7503130172');
 // Set to empty array [] to accept from ALL users
 define('ALLOWED_CHAT_IDS', ['383870190']);
 
-// Excluded Chat IDs - Messages from these chats will NOT be forwarded
-// Use this to exclude specific folders like "Personal Meet" from forwarding
-// Add chat IDs you want to exclude: ['111222', '333444']
-// Set to empty array [] to forward from ALL chats (no exclusions)
-define('EXCLUDED_CHAT_IDS', []);
+// Excluded Usernames - Messages from these Telegram usernames will NOT be forwarded
+// Use this to exclude specific users (easier than chat IDs!)
+// Add usernames WITHOUT the @ symbol: ['john_doe', 'jane_smith']
+// Set to empty array [] to forward from ALL users (no exclusions)
+define('EXCLUDED_USERNAMES', []);
 
 // Enable logging for debugging (set to false in production)
 define('ENABLE_LOGGING', true);

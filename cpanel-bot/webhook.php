@@ -44,15 +44,15 @@ if (!empty(ALLOWED_CHAT_IDS) && !in_array((string)$senderId, ALLOWED_CHAT_IDS)) 
 }
 // ========================================================================
 
-// ========== EXCLUDE SPECIFIC FOLDERS/CHATS FROM FORWARDING ==========
-// Messages from these chat IDs will NOT be forwarded (e.g., Personal Meet folder)
-$chatId = $message['chat']['id'] ?? null;
-if (!empty(EXCLUDED_CHAT_IDS) && $chatId && in_array((string)$chatId, EXCLUDED_CHAT_IDS)) {
-    logMessage("Skipping - chat is in excluded list", [
-        'chat_id' => $chatId,
-        'excluded_ids' => EXCLUDED_CHAT_IDS
+// ========== EXCLUDE SPECIFIC USERS BY USERNAME FROM FORWARDING ==========
+// Messages from these Telegram usernames will NOT be forwarded
+$username = $message['from']['username'] ?? null;
+if (!empty(EXCLUDED_USERNAMES) && $username && in_array(strtolower($username), array_map('strtolower', EXCLUDED_USERNAMES))) {
+    logMessage("Skipping - user is in excluded list", [
+        'username' => $username,
+        'excluded_usernames' => EXCLUDED_USERNAMES
     ]);
-    echo json_encode(['ok' => true, 'skipped' => true, 'reason' => 'Chat excluded from forwarding']);
+    echo json_encode(['ok' => true, 'skipped' => true, 'reason' => 'User excluded from forwarding']);
     exit;
 }
 // ====================================================================
