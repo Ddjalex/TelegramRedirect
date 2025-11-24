@@ -1,0 +1,42 @@
+# Telegram Bot .htaccess Configuration
+
+# Enable Rewrite Engine
+RewriteEngine On
+
+# Force HTTPS (required by Telegram)
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Protect config file from direct access
+<Files "config.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Protect log file from direct access
+<Files "bot.log">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Protect functions file from direct access
+<Files "functions.php">
+    Order Allow,Deny
+    Deny from all
+</Files>
+
+# Allow webhook.php and setup.php to be accessed
+<Files "webhook.php">
+    Allow from all
+</Files>
+
+<Files "setup.php">
+    Allow from all
+</Files>
+
+# Set PHP settings
+<IfModule mod_php.c>
+    php_flag display_errors Off
+    php_flag log_errors On
+    php_value error_log bot_errors.log
+</IfModule>
