@@ -57,6 +57,21 @@ if (!empty(EXCLUDED_USERNAMES) && $username && in_array(strtolower($username), a
 }
 // ====================================================================
 
+// ========== EXCLUDE SPECIFIC CHAT IDs FROM FORWARDING ==========
+// Messages from these chat IDs will NOT be forwarded
+$chatId = $message['chat']['id'] ?? null;
+if (!empty(EXCLUDED_CHAT_IDS) && $chatId && isset(EXCLUDED_CHAT_IDS[$chatId])) {
+    $chatInfo = EXCLUDED_CHAT_IDS[$chatId];
+    logMessage("Skipping - chat is in excluded list", [
+        'chat_id' => $chatId,
+        'chat_name' => $chatInfo['name'] ?? 'Unknown',
+        'chat_type' => $chatInfo['type'] ?? 'unknown'
+    ]);
+    echo json_encode(['ok' => true, 'skipped' => true, 'reason' => 'Chat excluded from forwarding']);
+    exit;
+}
+// ====================================================================
+
 // Detect message type and extract content
 $messageData = extractMessageData($message);
 

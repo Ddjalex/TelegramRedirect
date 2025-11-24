@@ -23,6 +23,11 @@ define('ALLOWED_CHAT_IDS', ['383870190']);
 // Set to empty array [] to forward from ALL users (no exclusions)
 define('EXCLUDED_USERNAMES', []);
 
+// Excluded Chat IDs - Messages from these chat IDs will NOT be forwarded
+// Organized by chat type (channel, group, or individual)
+// Structure: ['chat_id' => ['id' => 'chat_id', 'name' => 'Chat Name', 'type' => 'channel|group|individual']]
+define('EXCLUDED_CHAT_IDS', []);
+
 // Enable logging for debugging (set to false in production)
 define('ENABLE_LOGGING', true);
 

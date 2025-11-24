@@ -156,3 +156,54 @@ function logMessage($message, $data = null) {
     
     file_put_contents(LOG_FILE, $logEntry, FILE_APPEND);
 }
+
+/**
+ * Determine chat type from message
+ */
+function getChatType($message) {
+    if (!isset($message['chat'])) {
+        return 'unknown';
+    }
+    
+    $chat = $message['chat'];
+    $chatType = $chat['type'] ?? 'unknown';
+    
+    if ($chatType === 'private') {
+        return 'individual';
+    } elseif ($chatType === 'group' || $chatType === 'supergroup') {
+        return 'group';
+    } elseif ($chatType === 'channel') {
+        return 'channel';
+    }
+    
+    return 'unknown';
+}
+
+/**
+ * Get chat name from message
+ */
+function getChatName($message) {
+    if (!isset($message['chat'])) {
+        return 'Unknown Chat';
+    }
+    
+    $chat = $message['chat'];
+    
+    if (isset($chat['title'])) {
+        return $chat['title'];
+    }
+    
+    if (isset($chat['username'])) {
+        return '@' . $chat['username'];
+    }
+    
+    if (isset($chat['first_name'])) {
+        $name = $chat['first_name'];
+        if (isset($chat['last_name'])) {
+            $name .= ' ' . $chat['last_name'];
+        }
+        return $name;
+    }
+    
+    return 'Unknown Chat';
+}
