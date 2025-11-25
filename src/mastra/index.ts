@@ -11,7 +11,15 @@ import { sharedPostgresStorage } from "./storage";
 import { inngest, inngestServe } from "./inngest";
 import { telegramForwardWorkflow } from "./workflows/telegramForwardWorkflow";
 import { registerTelegramTrigger } from "../triggers/telegramTriggers";
-import { getPausedChats, pauseChat, resumeChat, isChatPaused } from "./storage/pausedChats";
+import { 
+  getPausedChats, 
+  pauseChat, 
+  resumeChat, 
+  isChatPaused,
+  updateBusinessConnection,
+  isBusinessConnectionEnabled,
+  getAllBusinessConnections
+} from "./storage/pausedChats";
 
 class ProductionPinoLogger extends MastraLogger {
   protected logger: pino.Logger;
@@ -228,33 +236,33 @@ export const mastra = new Mastra({
               // When user clicks START/STOP in Telegram Business, we receive this event
               if (payload.business_connection) {
                 const connection = payload.business_connection;
-                const chatId = connection.user_chat_id?.toString();
+                const connectionId = connection.id;
+                const userChatId = connection.user_chat_id?.toString();
                 const isEnabled = connection.is_enabled;
                 const userName = connection.user?.username || connection.user?.first_name || "unknown";
                 
-                logger?.info(`${isEnabled ? '▶️' : '⏸️'} [Telegram Business] Bot ${isEnabled ? 'STARTED' : 'STOPPED'} for chat`, {
-                  chatId,
+                logger?.info(`${isEnabled ? '▶️' : '⏸️'} [Telegram Business] Bot ${isEnabled ? 'STARTED' : 'STOPPED'}`, {
+                  connectionId,
+                  userChatId,
                   userName,
                   isEnabled,
                 });
                 
-                // Store the paused status persistently
-                if (!isEnabled && chatId) {
-                  // Bot was STOPPED - add to paused list
-                  pauseChat(chatId, userName);
-                  logger?.info("⏸️ [Telegram] Chat PAUSED - will skip forwarding", { 
-                    chatId, 
-                    userName,
-                    pausedChats: getPausedChats()
-                  });
-                } else if (isEnabled && chatId) {
-                  // Bot was STARTED - remove from paused list
-                  resumeChat(chatId);
-                  logger?.info("▶️ [Telegram] Chat RESUMED - will forward messages", { 
-                    chatId,
-                    userName,
-                    pausedChats: getPausedChats()
-                  });
+                // Store the business connection status using connection ID (not chat ID!)
+                if (connectionId && userChatId) {
+                  updateBusinessConnection(connectionId, userChatId, userName, isEnabled);
+                  
+                  const allConnections = getAllBusinessConnections();
+                  logger?.info(
+                    `${isEnabled ? '✅' : '⏸️'} [Telegram Business] Connection ${isEnabled ? 'ENABLED' : 'DISABLED'}`,
+                    {
+                      connectionId,
+                      userChatId,
+                      userName,
+                      status: isEnabled ? 'Will forward messages' : 'Will NOT forward messages',
+                      allConnections: Object.keys(allConnections).length
+                    }
+                  );
                 }
                 
                 return c.json({ ok: true, status: "connection_updated" });
@@ -263,6 +271,8 @@ export const mastra = new Mastra({
 
               // Support both regular messages and business messages
               const messageData = payload.message || payload.business_message;
+              const isBusinessMessage = !!payload.business_message;
+              const businessConnectionId = payload.business_message?.business_connection_id;
               
               // Check if there's any content to forward
               if (!messageData) {
@@ -280,37 +290,63 @@ export const mastra = new Mastra({
                 senderUserName,
                 chatId,
                 chatType: messageData.chat?.type,
+                isBusinessMessage,
+                businessConnectionId,
               });
               // ===============================================
               
-              // ========== FILTER: ONLY ACCEPT MESSAGES FROM SPECIFIC CHAT IDs ==========
-              // Change this list to control who can send messages to the bot
-              const ALLOWED_CHAT_IDS = process.env.ALLOWED_CHAT_IDS 
-                ? process.env.ALLOWED_CHAT_IDS.split(',')
-                : ['383870190']; // Default: only accept from this chat ID
-              
-              // Check if sender is allowed
-              if (!ALLOWED_CHAT_IDS.includes(senderId)) {
-                logger?.warn("🚫 [Telegram] BLOCKED - Sender not in allowed list", {
+              // ========== CHECK BUSINESS CONNECTION STATUS (Telegram Business) ==========
+              // For business messages, check if the connection is enabled (START/STOP)
+              if (isBusinessMessage && businessConnectionId) {
+                const connectionEnabled = isBusinessConnectionEnabled(businessConnectionId);
+                
+                if (!connectionEnabled) {
+                  logger?.warn("⏸️ [Telegram Business] STOPPED - Connection is disabled", {
+                    businessConnectionId,
+                    senderId,
+                    senderUserName,
+                    chatId,
+                    message: "User clicked STOP button. Messages will not be forwarded until START is clicked."
+                  });
+                  return c.json({ ok: true, skipped: true, reason: "Business connection is disabled (STOP clicked)" });
+                }
+                
+                logger?.info("✅ [Telegram Business] Connection ENABLED - will forward message", {
+                  businessConnectionId,
                   senderId,
-                  senderUserName,
                   chatId,
-                  allowedIds: ALLOWED_CHAT_IDS,
-                  message: "To allow this chat, add this senderId to ALLOWED_CHAT_IDS environment variable"
                 });
-                return c.json({ ok: true, message: "Not authorized" });
-              }
-              // ========================================================================
-              
-              // ========== CHECK IF CHAT IS PAUSED (Business Bot STOP button) ==========
-              // If user clicked STOP in Telegram Business, skip forwarding
-              if (chatId && isChatPaused(chatId)) {
-                logger?.info("⏸️ [Telegram] Skipping - bot is PAUSED for this chat", {
-                  chatId,
-                  senderUserName,
-                  pausedChats: getPausedChats(),
-                });
-                return c.json({ ok: true, skipped: true, reason: "Bot paused for this chat" });
+                
+                // Business messages bypass ALLOWED_CHAT_IDS check if connection is active
+                // This is because the business owner has already authorized the bot
+              } else {
+                // ========== FILTER: ONLY ACCEPT MESSAGES FROM SPECIFIC CHAT IDs (Regular messages) ==========
+                // Only applies to non-business messages
+                const ALLOWED_CHAT_IDS = process.env.ALLOWED_CHAT_IDS 
+                  ? process.env.ALLOWED_CHAT_IDS.split(',')
+                  : ['383870190']; // Default: only accept from this chat ID
+                
+                // Check if sender is allowed
+                if (!ALLOWED_CHAT_IDS.includes(senderId)) {
+                  logger?.warn("🚫 [Telegram] BLOCKED - Sender not in allowed list", {
+                    senderId,
+                    senderUserName,
+                    chatId,
+                    allowedIds: ALLOWED_CHAT_IDS,
+                    message: "To allow this chat, add this senderId to ALLOWED_CHAT_IDS environment variable"
+                  });
+                  return c.json({ ok: true, message: "Not authorized" });
+                }
+                
+                // ========== CHECK IF CHAT IS PAUSED (Legacy pausing system) ==========
+                if (chatId && isChatPaused(chatId)) {
+                  logger?.info("⏸️ [Telegram] Skipping - chat is in legacy paused list", {
+                    chatId,
+                    senderUserName,
+                    pausedChats: getPausedChats(),
+                  });
+                  return c.json({ ok: true, skipped: true, reason: "Chat paused" });
+                }
               }
               
               // ========== EXCLUDE SPECIFIC FOLDERS/CHATS FROM FORWARDING ==========
