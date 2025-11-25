@@ -27,14 +27,6 @@ localPort = 5000
 externalPort = 80
 
 [[ports]]
-localPort = 8080
-externalPort = 8080
-
-[[ports]]
-localPort = 8289
-externalPort = 3001
-
-[[ports]]
 localPort = 37103
 externalPort = 5000
 
@@ -66,6 +58,10 @@ externalPort = 4200
 localPort = 50053
 externalPort = 80
 
+[[ports]]
+localPort = 3001
+externalPort = 3001
+
 [workflows]
 runButton = "Project"
 
@@ -91,24 +87,24 @@ name = "Mastra Bot"
 author = "agent"
 
 [workflows.workflow.metadata]
-outputType = "webview"
+outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
-waitForPort = 5000
+waitForPort = 3001
 
 [[workflows.workflow]]
 name = "PHP Admin Panel"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "webview"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd cpanel-bot && php -S 0.0.0.0:8080"
-waitForPort = 8080
-
-[workflows.workflow.metadata]
-outputType = "console"
+args = "cd cpanel-bot && php -S 0.0.0.0:5000"
+waitForPort = 5000
 
 [[workflows.workflow]]
 name = "Inngest Server"
