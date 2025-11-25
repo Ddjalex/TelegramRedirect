@@ -272,6 +272,16 @@ export const mastra = new Mastra({
 
               const senderId = messageData.from?.id?.toString();
               const senderUserName = messageData.from?.username || messageData.from?.first_name || "unknown";
+              const chatId = messageData.chat?.id?.toString();
+              
+              // ========== LOG INCOMING MESSAGE INFO ==========
+              logger?.info("📥 [Telegram] Incoming message", {
+                senderId,
+                senderUserName,
+                chatId,
+                chatType: messageData.chat?.type,
+              });
+              // ===============================================
               
               // ========== FILTER: ONLY ACCEPT MESSAGES FROM SPECIFIC CHAT IDs ==========
               // Change this list to control who can send messages to the bot
@@ -281,9 +291,12 @@ export const mastra = new Mastra({
               
               // Check if sender is allowed
               if (!ALLOWED_CHAT_IDS.includes(senderId)) {
-                logger?.info("🚫 [Telegram] Blocked - sender not in allowed list", {
+                logger?.warn("🚫 [Telegram] BLOCKED - Sender not in allowed list", {
                   senderId,
+                  senderUserName,
+                  chatId,
                   allowedIds: ALLOWED_CHAT_IDS,
+                  message: "To allow this chat, add this senderId to ALLOWED_CHAT_IDS environment variable"
                 });
                 return c.json({ ok: true, message: "Not authorized" });
               }
@@ -291,7 +304,6 @@ export const mastra = new Mastra({
               
               // ========== CHECK IF CHAT IS PAUSED (Business Bot STOP button) ==========
               // If user clicked STOP in Telegram Business, skip forwarding
-              const chatId = messageData.chat?.id?.toString();
               if (chatId && isChatPaused(chatId)) {
                 logger?.info("⏸️ [Telegram] Skipping - bot is PAUSED for this chat", {
                   chatId,
