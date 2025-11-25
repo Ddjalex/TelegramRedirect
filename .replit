@@ -23,8 +23,20 @@ externalPort = 3000
 exposeLocalhost = true
 
 [[ports]]
+localPort = 3001
+externalPort = 8000
+
+[[ports]]
 localPort = 5000
 externalPort = 80
+
+[[ports]]
+localPort = 8080
+externalPort = 8080
+
+[[ports]]
+localPort = 8289
+externalPort = 3001
 
 [[ports]]
 localPort = 37103
@@ -52,15 +64,11 @@ externalPort = 6000
 
 [[ports]]
 localPort = 50052
-externalPort = 4200
+externalPort = 8008
 
 [[ports]]
 localPort = 50053
-externalPort = 80
-
-[[ports]]
-localPort = 3001
-externalPort = 3001
+externalPort = 4200
 
 [workflows]
 runButton = "Project"
@@ -92,7 +100,6 @@ outputType = "console"
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "npm run dev"
-waitForPort = 3001
 
 [[workflows.workflow]]
 name = "PHP Admin Panel"
@@ -110,13 +117,12 @@ waitForPort = 5000
 name = "Inngest Server"
 author = "agent"
 
+[workflows.workflow.metadata]
+outputType = "console"
+
 [[workflows.workflow.tasks]]
 task = "shell.exec"
 args = "bash scripts/inngest.sh"
-waitForPort = 3000
-
-[workflows.workflow.metadata]
-outputType = "console"
 
 [userenv]
 
