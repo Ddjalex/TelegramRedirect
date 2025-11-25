@@ -4,6 +4,20 @@ This is a Mastra-based agent automation project built for Replit's automation pl
 
 The project uses TypeScript with modern ES modules and is designed to run on Node.js 20.9.0 or later. It integrates with the Mastra framework for agent orchestration, Inngest for durable workflow execution, and supports multiple storage backends including PostgreSQL and LibSQL.
 
+## Telegram Business Bot Features
+
+**Automatic START/STOP Detection (NEW!)**
+The bot now automatically respects Telegram Business START/STOP controls. When you:
+- Click **STOP** button in any chat → Bot immediately stops forwarding messages from that chat
+- Click **START** button → Bot resumes forwarding messages from that chat
+
+Paused chats are stored persistently in `.local/paused_chats.json` so the setting survives bot restarts.
+
+**Forwarding Configuration**
+- Messages from allowed chat IDs (configured in `ALLOWED_CHAT_IDS` env var) are forwarded to `TARGET_CHAT_ID` (default: 7503130172)
+- Only messages from chat ID: 383870190, 7960686321 are currently allowed
+- Target forwarding destination: 7503130172
+
 ## cPanel Bot Management
 
 The project includes a PHP-based Telegram bot in the `cpanel-bot` folder for cPanel hosting. A web interface (`cpanel-bot/index.php`) provides easy management of excluded chat IDs through a browser, allowing you to add/remove chat IDs that should not be forwarded by the bot.
